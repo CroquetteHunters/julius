@@ -118,6 +118,12 @@ python tools/iap_browser_auth.py --clear
 
 Every finding MUST include ALL of these fields before import. Missing fields = do not import.
 
+**Markdown formatting**: All text fields (`description`, `impact`, `steps_to_reproduce`, `mitigation`) are rendered as **Markdown** in the DefectDojo UI. Always use proper markdown: `### Headers` for sections, `` ```python ``/`` ```bash `` for code blocks, `| col | col |` for tables, `**bold**` for emphasis, `> quotes` for results, and `-` for lists. Never use plain text formatting — it will render poorly.
+
+**Cross-references between findings**: When a finding references another finding, ALWAYS use a markdown link with the DefectDojo finding URL: `[Finding #1234](https://dojo.example.com/finding/1234)`. This means findings that are referenced by others MUST be created first. **Plan the import order so that dependencies are created before dependents** — e.g., if Finding B references Finding A, create Finding A first, get its DefectDojo ID, then use that URL when creating Finding B.
+
+**No abbreviations — match local reports exactly**: The DefectDojo finding MUST contain the same level of detail as the local report (`outputs/*/findings/finding-NNN/report.md`). Never summarize, shorten, or omit content when importing to DefectDojo. Include all code snippets, all PoC commands, all HTTP responses, all tables, and all evidence from the local report. Full URLs, full paths, full commands — never use `...` or ellipsis.
+
 | Field | DefectDojo API field | Format | Required |
 |-------|---------------------|--------|----------|
 | **Title** | `title` | `Short description` (no CWE prefix) | YES |
@@ -126,7 +132,7 @@ Every finding MUST include ALL of these fields before import. Missing fields = d
 | **CVSS Score** | `cvssv3_score` | Numeric (0.0-10.0), derived from vector | YES |
 | **Severity** | `severity` | Critical(9.0-10.0)/High(7.0-8.9)/Medium(4.0-6.9)/Low(0.1-3.9)/Info(0.0) — MUST match CVSS score, never override manually | YES |
 | **Endpoint** | `endpoints` | Affected URL/path/component | YES |
-| **Description** | `description` | Technical explanation of the vulnerability | YES |
+| **Description** | `description` | Technical explanation of the vulnerability. **MUST include affected components and endpoints** (e.g., file paths, API routes, infrastructure elements). | YES |
 | **Impact** | `impact` | Real business impact (verified, not theoretical) | YES |
 | **Steps to Reproduce** | `steps_to_reproduce` | Numbered steps with exact commands/requests | YES |
 | **Mitigation** | `mitigation` | Actionable remediation guidance | YES |
