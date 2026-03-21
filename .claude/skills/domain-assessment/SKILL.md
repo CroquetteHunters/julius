@@ -109,13 +109,31 @@ This coordinator orchestrates comprehensive domain reconnaissance through specia
 - Search engine dorking
 - Subdomain takeover checks
 
+### Phase 1.5: Live Host Detection & Tech Fingerprinting
+- **httpx** probe all discovered subdomains: `httpx -l subs.txt -sc -title -tech-detect -timeout 5 -threads 50 -retries 0`
+- Pre-filter `.internal.*`, `.uat.*`, regional (`eu-central-1.*`) subdomains to avoid DNS timeout hangs
+- Categorize by response: 200 (live app), 301/302 (redirect), 403 (WAF/challenge), 404 (catch-all)
+- Identify tech stacks (Cloudflare, Envoy, WordPress, Laravel, Next.js, Auth0, etc.)
+- Reduce attack surface to only live, responding hosts before port scanning
+
 ### Phase 2: Port Scanning
-- Comprehensive port scanning (top 1000, top 10000, all ports)
-- Service and version detection
-- OS detection
-- Script scanning for vulnerabilities
-- UDP port scanning
-- Custom port range scanning
+- **naabu** fast SYN scan: `naabu -list hostnames.txt -top-ports 1000` (requires bare hostnames, NOT URLs)
+- Focus on non-standard ports (not 80/443) — admin panels, dev servers, internal APIs
+- Cloudflare-proxied hosts show 8080/8443 as redirects — deprioritize these
+- Non-CF hosts (CloudFront, Vercel, direct IPs) yield more interesting port results
+- Fallback: nmap for service version detection on interesting ports
+
+### Phase 2.5: Directory Fuzzing
+- **ffuf** per live host: `ffuf -w ~/SecLists/Discovery/Web-Content/common.txt -u "https://{host}/FUZZ" -mc 200,301,302`
+- Target non-Cloudflare hosts preferentially (WordPress, Laravel, Docusaurus)
+- Filter Cloudflare WAF noise with `-fs 5453` (uniform 403 response size)
+- Prerequisites: SecLists (`git clone --depth 1 https://github.com/danielmiessler/SecLists.git ~/SecLists`)
+
+### Phase 2.75: Vulnerability Scanning
+- **nuclei** against all live hosts: `nuclei -l live.txt -severity medium,high,critical -timeout 10`
+- Run in background (~10-15 min for 60+ hosts, ~700MB RAM)
+- Hardened targets may yield 0 findings — expected behavior
+- Review findings manually for false positives on Cloudflare-protected hosts
 
 ### Phase 3: Service Enumeration
 - Service identification on open ports

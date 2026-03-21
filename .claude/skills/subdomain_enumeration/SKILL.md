@@ -122,6 +122,97 @@ Query RecoX web-based reconnaissance tool for additional subdomain data.
 
 **Note:** RecoX complements crt.sh and subfinder by using additional data sources. Always query it alongside other tools to maximize coverage.
 
+## Post-Enumeration Recon Pipeline
+
+After subdomain discovery, run this 4-step pipeline to reduce the attack surface to actionable targets and identify quick wins.
+
+### 6. live_host_detection (httpx)
+
+Probe each subdomain over HTTP/HTTPS to identify live hosts. This is the essential first filter — it reduces the attack surface to only hosts that are actually alive.
+
+**Command:**
+```bash
+httpx -l {target}_subdomains.txt -sc -title -tech-detect -timeout 5 -threads 50 -retries 0 -o {target}_live.txt
+```
+
+**Process:**
+1. Feed the merged subdomain list from operations 1-5
+2. **IMPORTANT**: Filter out `.internal.*` and `.uat.*` subdomains first — they cause DNS timeout hangs
+3. Run in two batches if > 100 subdomains (known-resolving first, then CT-log-only)
+4. Parse output for status codes, titles, and tech stacks
+
+**Lessons Learned:**
+- Use `-timeout 5 -retries 0` to avoid hanging on unresolvable internal subdomains
+- Internal/UAT subdomains (`*.internal.*`, `*.uat.*`, `eu-central-1.*`) will hang indefinitely — pre-filter them
+- httpx writes output file only after completion, not progressively
+- Most Cloudflare-proxied hosts return 403 (managed challenge) or 404 (catch-all) — note which return 200/301/302 as these have real applications
+
+### 7. port_scanning (naabu)
+
+Fast-scan live targets for open ports beyond 80/443. Non-standard ports often expose admin panels, dev/staging servers, internal APIs, or debug endpoints.
+
+**Command:**
+```bash
+naabu -list {target}_hostnames.txt -top-ports 1000 -o {target}_ports.txt
+```
+
+**Process:**
+1. Extract bare hostnames from live hosts list (strip `https://` and `http://` prefixes)
+2. **CRITICAL**: naabu requires bare hostnames, NOT URLs — `sed 's|^https://||; s|^http://||'`
+3. Run naabu against the clean hostname list
+4. Focus investigation on non-standard ports (not 80/443)
+
+**Installation:** `go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest` (installs to `~/go/bin/naabu`)
+
+**Lessons Learned:**
+- naabu fails silently with "no valid targets" if input contains URL prefixes
+- Cloudflare-proxied hosts typically show ports 80, 443, 8080, 8443 — the 8080/8443 ports are just CF redirects, not real services
+- Non-CF hosts (CloudFront, Vercel, direct IPs) are more interesting for port scanning
+- SIP port (5060) on CloudFront hosts is usually a false positive
+
+### 8. directory_fuzzing (ffuf)
+
+Brute-force URL paths on live hosts to uncover hidden admin panels, backup files, undocumented API routes, and legacy endpoints.
+
+**Command:**
+```bash
+ffuf -w ~/SecLists/Discovery/Web-Content/common.txt -u "https://{host}/FUZZ" -mc 200,301,302,403 -t 50 -timeout 5
+```
+
+**Process:**
+1. Target only hosts that returned 200/301/302 in httpx (skip 403/404 catch-all hosts)
+2. Run ffuf per-host, NOT with `FUZZ.{domain}` pattern
+3. **IMPORTANT**: Use `-fs {size}` to filter out Cloudflare WAF 403 responses (typically 5453 bytes)
+4. Focus on hosts NOT behind Cloudflare for best results (WordPress, Laravel, Docusaurus instances)
+
+**Prerequisites:** SecLists must be installed (`git clone --depth 1 https://github.com/danielmiessler/SecLists.git ~/SecLists`)
+
+**Lessons Learned:**
+- Cloudflare WAF returns uniform 403 (5453 bytes) for ALL fuzzing — use `-fs 5453` to filter
+- ffuf v2.1.0 does NOT support `-s` (silent) or `-ac` (autocalibrate) flags correctly — omit them
+- Target non-CF hosts preferentially: WordPress sites, API endpoints (Laravel), docs sites (Docusaurus)
+- `-mc 200,301,302,403` catches everything but adds noise from Cloudflare — consider `-mc 200,301,302` only
+
+### 9. vulnerability_scanning (nuclei)
+
+Run community-maintained templates against live hosts to catch known CVEs, exposed admin panels, default credentials, misconfigured headers, SSRF vectors, and more.
+
+**Command:**
+```bash
+nuclei -l {target}_live.txt -severity medium,high,critical -timeout 10 -retries 0 -o {target}_vulns.txt
+```
+
+**Process:**
+1. Feed the full live hosts list from step 6
+2. Scan with medium/high/critical severity (skip info/low for speed)
+3. Review findings manually — nuclei can produce false positives on Cloudflare-protected hosts
+
+**Lessons Learned:**
+- Nuclei uses ~700MB RAM and takes 10-15+ minutes for 60+ hosts with 9000+ templates
+- Do NOT use `-bulk-size 50 -c 50` — causes "concurrency higher than max-host-error" warnings
+- Hardened targets (full Cloudflare, proper headers) typically yield 0 findings — this is expected
+- Run nuclei in background while investigating httpx/naabu results manually
+
 ## Output
 
 ```json

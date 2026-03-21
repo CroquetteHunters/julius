@@ -147,6 +147,22 @@ ideviceinstaller -l | grep "<bundle_id>"
 - [ ] Feed discovered endpoints back to web/API Pentester agents
 ```
 
+## Post-Enumeration Recon Pipeline (for domain-based assets)
+
+**BEFORE deploying pentester agents**, run this pipeline on wildcard/domain assets to identify the real attack surface:
+
+1. **httpx** live host detection: `httpx -l subs.txt -sc -title -tech-detect -timeout 5 -threads 50 -retries 0`
+   - Pre-filter `.internal.*`/`.uat.*` subdomains (cause DNS hangs)
+   - Categorize hosts by response code and tech stack
+2. **naabu** port scan: `naabu -list hostnames.txt -top-ports 1000` (bare hostnames, NOT URLs)
+   - Focus on non-standard ports (not 80/443) — admin panels, dev servers
+3. **ffuf** directory fuzzing: `ffuf -w ~/SecLists/Discovery/Web-Content/common.txt -u "https://{host}/FUZZ" -mc 200,301,302`
+   - Target non-Cloudflare hosts; filter CF WAF 403s with `-fs 5453`
+4. **nuclei** vuln scan: `nuclei -l live.txt -severity medium,high,critical -timeout 10`
+   - Run in background (~10-15 min); review for false positives
+
+See `/subdomain_enumeration` skill for detailed lessons learned and gotchas.
+
 ## Agent Deployment
 
 **Pentester Agent** per asset (tier-prioritized):
