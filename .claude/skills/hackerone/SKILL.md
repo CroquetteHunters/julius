@@ -197,6 +197,7 @@ When httpx tech-detect or page analysis reveals JavaScript frameworks (React, Vu
 Deploy these skills when recon or tech detection identifies specific conditions:
 
 - **`/cve-testing`** + **`/cve-poc-generator`** — When httpx, nuclei, or tech-detect identifies specific software versions (e.g., Apache 2.4.49, jQuery 3.4.1, Spring 5.3.x). `/cve-testing` researches known CVEs and tests with public exploits. When a CVE is confirmed, `/cve-poc-generator` creates a standalone Python PoC script + detailed report with NVD data, CVSS vector, and remediation. High-value: unpatched services on non-standard ports.
+- **`/source-code-scanning`** — When `/code-repository-intel` discovers exposed source code (public repos, leaked repos, `.git` directories, source maps). Runs SAST for OWASP Top 10 + CWE Top 25, scans dependencies for CVEs, detects hardcoded secrets (API keys, tokens, passwords), and identifies insecure patterns. Chain: exposed secrets → account takeover, dependency CVEs → RCE.
 - **`/ai-threat-testing`** — When recon discovers AI/LLM features: chatbots, AI assistants, `/api/chat`, `/api/completions`, prompt-based interfaces, or OpenAI/Anthropic SDK references in JS bundles. Tests OWASP LLM Top 10 (prompt injection, model extraction, data poisoning).
 - **`/authenticating`** — When login/signup forms are discovered. Automates credential testing, 2FA bypass, CAPTCHA solving, session management analysis via Playwright MCP. Deploy for each unique auth endpoint found.
 - **`/cloud-security`** — When `/cloud-infra-detector` or recon identifies AWS/Azure/GCP infrastructure (S3 buckets, Azure blobs, metadata endpoints, cloud-specific headers). Tests IAM misconfigs, storage enumeration, SSRF to metadata service.
@@ -368,7 +369,7 @@ Before submission:
 - `/mobile-security` skill - Mobile app analysis
 - `dom-xss-scanner` agent - Automated DOM XSS via Playwright (auto for JS targets)
 - **Recon skills** (auto-parallel): `/code-repository-intel`, `/api-portal-discovery`, `/web-application-mapping`, `/security-posture-analyzer`, `/cdn-waf-fingerprinter`
-- **Conditional skills**: `/cve-testing` + `/cve-poc-generator`, `/ai-threat-testing`, `/authenticating`, `/cloud-security`, `/container-security`, `/burp-suite`
+- **Conditional skills**: `/cve-testing` + `/cve-poc-generator`, `/source-code-scanning`, `/ai-threat-testing`, `/authenticating`, `/cloud-security`, `/container-security`, `/burp-suite`
 - **Utility agents**: `patt-fetcher` (PATT payloads on-demand), `script-generator` (optimized PoC scripts), `pentester-validator` (anti-hallucination checks)
 - Pentester agent - Orchestrates testing
 
