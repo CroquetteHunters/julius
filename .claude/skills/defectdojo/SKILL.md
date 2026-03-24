@@ -78,6 +78,7 @@ python tools/iap_browser_auth.py --clear
 
 Each finding is a standalone `report.md` with YAML frontmatter + full markdown body:
 
+**For web application / dynamic findings:**
 ```markdown
 ---
 title: "Short descriptive title"
@@ -85,9 +86,34 @@ cwe: 918
 cvssv3: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:L/A:N"
 cvssv3_score: 7.5
 severity: High
-endpoint: "src/app/Domain/Example/Action.php"
+static_finding: false
+dynamic_finding: true
+endpoint: "https://example.com/api/vulnerable-endpoint"
 ---
+```
 
+**For source code review / SAST findings:**
+```markdown
+---
+title: "Short descriptive title"
+cwe: 918
+cvssv3: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:L/A:N"
+cvssv3_score: 7.5
+severity: High
+static_finding: true
+dynamic_finding: false
+file_path: "src/app/Domain/Example/Action.php"
+line: 42
+sast_source_file_path: "src/app/Http/Controllers/ExampleController.php"
+sast_source_line: 15
+sast_source_object: "$request->input('url')"
+sast_sink_object: "Http::get()"
+---
+```
+
+**Common body structure** (same for both types):
+
+```markdown
 ## Description
 
 Technical explanation of the vulnerability. MUST include affected
@@ -134,6 +160,8 @@ if (!in_array($parsed['host'], $allowedHosts)) {
 
 ### Frontmatter Fields
 
+**Common (all finding types):**
+
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `title` | string | YES | Short description, no CWE prefix |
@@ -141,7 +169,27 @@ if (!in_array($parsed['host'], $allowedHosts)) {
 | `cvssv3` | string | YES | Full `CVSS:3.1/AV:.../...` vector |
 | `cvssv3_score` | float | YES | **MUST be computed with calculator, never guessed** |
 | `severity` | string | YES | Must match CVSS score: Critical(9.0-10.0)/High(7.0-8.9)/Medium(4.0-6.9)/Low(0.1-3.9)/Info(0.0) |
-| `endpoint` | string | YES | Affected file path, API route, or component |
+| `static_finding` | bool | YES | `true` for code review/SAST, `false` for dynamic testing |
+| `dynamic_finding` | bool | YES | `true` for dynamic/web testing, `false` for SAST |
+
+**For dynamic/web findings** (`dynamic_finding: true`):
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `endpoint` | string | YES | **Must be a valid URL** with `http://` or `https://` protocol. Maps to DD `endpoints` (protocol+host+path). Example: `https://api.example.com/login` |
+
+**For code review / SAST findings** (`static_finding: true`):
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `file_path` | string | YES | Path to the vulnerable file. Maps to DD `file_path` |
+| `line` | integer | NO | Line number of the vulnerability. Maps to DD `line` |
+| `sast_source_file_path` | string | NO | Source file (where tainted input enters). Maps to DD `sast_source_file_path` |
+| `sast_source_line` | integer | NO | Source line number. Maps to DD `sast_source_line` |
+| `sast_source_object` | string | NO | Source object/function (e.g., `$request->input('url')`). Maps to DD `sast_source_object` |
+| `sast_sink_object` | string | NO | Sink object/function (e.g., `Http::get()`). Maps to DD `sast_sink_object` |
+
+**IMPORTANT**: `endpoint` in DefectDojo ONLY accepts valid URLs. For source code findings, use `file_path` + `line` instead. Never put a file path in `endpoint`.
 
 ### Writing Reports
 
@@ -280,6 +328,8 @@ Every finding MUST be written as a local `report.md` file first (see Phase 1). T
 
 ### Frontmatter → DefectDojo API Mapping
 
+**Common fields:**
+
 | report.md frontmatter | DefectDojo API field | Format |
 |------------------------|---------------------|--------|
 | `title` | `title` | Short description (no CWE prefix) |
@@ -287,12 +337,30 @@ Every finding MUST be written as a local `report.md` file first (see Phase 1). T
 | `cvssv3` | `cvssv3` | Full `CVSS:3.1/AV:.../...` string |
 | `cvssv3_score` | `cvssv3_score` | Numeric (0.0-10.0), **computed with calculator** |
 | `severity` | `severity` | Must match CVSS score range |
-| `endpoint` | `endpoints` | Affected URL/path/component |
+| `static_finding` | `static_finding` | `true` for SAST/code review |
+| `dynamic_finding` | `dynamic_finding` | `true` for web/dynamic testing |
 | Body `## Description` | `description` | Technical explanation |
 | Body `## Impact` | `impact` | Verified business impact |
 | Body `## Steps to Reproduce` | `steps_to_reproduce` | Numbered steps with commands |
 | Body `## Mitigation` | `mitigation` | Actionable remediation |
 | `finding-NNN/evidence/*` | file upload | Screenshots, PoCs, HTTP logs |
+
+**Dynamic findings** (`dynamic_finding: true`):
+
+| report.md frontmatter | DefectDojo API field | Format |
+|------------------------|---------------------|--------|
+| `endpoint` | `endpoints` | **Valid URL only** (`https://host/path`). Create endpoint object via `/api/v2/endpoints/` then link to finding |
+
+**SAST / code review findings** (`static_finding: true`):
+
+| report.md frontmatter | DefectDojo API field | Format |
+|------------------------|---------------------|--------|
+| `file_path` | `file_path` | Path to vulnerable file (e.g., `src/app/Domain/Action.php`) |
+| `line` | `line` | Line number of vulnerable code |
+| `sast_source_file_path` | `sast_source_file_path` | Source file where tainted input enters |
+| `sast_source_line` | `sast_source_line` | Source line number |
+| `sast_source_object` | `sast_source_object` | Source object/function |
+| `sast_sink_object` | `sast_sink_object` | Sink object/function |
 
 ## Engagement Types
 
