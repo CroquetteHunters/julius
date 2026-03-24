@@ -42,6 +42,7 @@ You only have read permissions on this current directory
 
 ### Client-Side Security
 - **xss-tester**: Cross-site scripting testing (reflected, stored, DOM-based) across modern frameworks
+- **dom-xss-scanner**: Automated DOM XSS detection via Playwright MCP. Hooks dangerous sinks, injects canary tokens through DOM sources, detects taint flow, and escalates with context-aware payloads. Use when targets have JavaScript-heavy frontends (SPAs, React, Vue, Angular).
 
 ### Coming Soon
 Additional common application security pattern agents will be added to this skill, including:
@@ -74,7 +75,20 @@ Launch specific XSS testing based on application type:
 - subagent_type: "xss-tester"
 - prompt: "Focus on stored XSS in comments, profiles, and rich text editors with markdown/HTML support"
 
-### Option 3: Defense Validation
+### Option 3: DOM XSS Deep Scan (Playwright-based)
+Launch automated DOM XSS scanner for JavaScript-heavy targets:
+- subagent_type: "dom-xss-scanner"
+- description: "Automated DOM XSS detection via sink hooking and canary injection"
+- prompt: "Scan {target_url} for DOM-based XSS. Hook sinks (innerHTML, document.write, eval, jQuery.html), inject canaries through all sources (URL params, hash, postMessage, referrer, window.name), detect taint flow, and escalate confirmed flows with context-aware payloads."
+
+**When to prefer dom-xss-scanner over xss-tester:**
+- SPAs with client-side routing (React Router, Vue Router, Angular Router)
+- Heavy jQuery usage with dynamic DOM manipulation
+- postMessage-based widget communication
+- Hash-based navigation or deep linking
+- Applications that process URL fragments client-side
+
+### Option 4: Defense Validation
 Test security control effectiveness:
 - subagent_type: "xss-tester"
 - description: "Validate CSP, Trusted Types, and sanitizer effectiveness"
