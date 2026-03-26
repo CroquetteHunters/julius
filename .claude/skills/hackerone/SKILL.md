@@ -248,7 +248,20 @@ Deploy **`pentester-validator`** agent per finding (all in parallel) to run 5 an
    - **When in doubt, ASK the user** before reporting — a "by design" rejection wastes everyone's time and damages researcher reputation.
 3. **Submission requirements check**: Does the report include everything the program requires? Read the program's submission requirements — each program has its own (e.g., role used, raw HTTP requests, affected plans, reproduction steps).
 4. **Impact honesty check**: Does the claimed severity match the demonstrated impact? Don't inflate.
-5. **Present findings to user for review**: Show a summary of each finding with severity, evidence quality, OOS risk assessment, and business logic verification result. Let the user decide which to submit.
+5. **Developer reproducibility review**: For EACH finding, verify:
+   - All URLs in Steps to Reproduce are FULL (https://...), never relative
+   - Auth method explained (how to get tokens/cookies)
+   - Every command is copy-pasteable and will work as written
+   - Request body/params match what was ACTUALLY tested, not guessed from code
+   - Expected responses documented (status codes, body snippets)
+   - All prerequisites listed as numbered steps (2nd account, specific role, etc.)
+   - Category/enum values match what the server actually accepts
+   - No contradictions between different sections of the report
+   - Impact claims are supported by evidence (no "could steal tokens" without proof)
+   - CVSS vector, score, and severity all computed and aligned
+   - Evidence directory has real captured output (screenshots, HTTP logs, PoC scripts)
+   - **Visual PoC preferred**: If the vuln has a browser-renderable component (XSS, CSRF, open redirect), capture a browser screenshot showing the exploit firing (alert popup, redirect, DOM change). Terminal output is supplementary — visual evidence is primary for these types.
+6. **Present findings to user for review**: Show a summary of each finding with severity, evidence quality, OOS risk assessment, and business logic verification result. Let the user decide which to submit.
 
 ## Report Format
 

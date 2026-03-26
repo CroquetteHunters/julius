@@ -201,9 +201,47 @@ For EACH finding:
 4. CVSS score MUST be computed programmatically — use Python or bash calculator, NEVER guess
 ```
 
+### Developer Reproducibility Review (MANDATORY before upload)
+
+After all reports are written locally, run a **self-review pass** before presenting to the user. For EACH report, verify:
+
+```
+1. STEPS TO REPRODUCE — Reproducibility check:
+   - [ ] All URLs are FULL (https://...), never relative paths
+   - [ ] Auth method explained (how to get tokens/cookies)
+   - [ ] Every command is copy-pasteable and will work as written
+   - [ ] Request body matches the format that was actually tested (not the SAST assumption)
+   - [ ] Expected responses documented (status codes, body snippets)
+   - [ ] If a prerequisite exists (Redis injection, secret, 2nd account), it is listed as a numbered step
+   - [ ] Category/enum values match what the server actually accepts (test them, don't guess from code)
+
+2. CONSISTENCY — No contradictions:
+   - [ ] Endpoint in frontmatter matches the URL in Steps to Reproduce
+   - [ ] CVSS vector, score, and severity all align (compute with calculator)
+   - [ ] If dynamic_finding: true → frontmatter has `endpoint` field with valid URL
+   - [ ] If static_finding: true → frontmatter has `file_path` field
+   - [ ] Code snippets reference the ACTUAL vulnerable function/file, not a stale path
+   - [ ] Impact claims are supported by evidence (no "could steal admin tokens" without proof of rendering context)
+
+3. HONESTY — No inflation:
+   - [ ] Impact describes CONFIRMED impact, not theoretical best-case
+   - [ ] If exploitation requires privileged access (kubectl, secrets), state it clearly in Attack Complexity
+   - [ ] If a mitigation (like F005 HMAC) raises the bar, document it as prerequisite
+   - [ ] CVSS Scope (S:C vs S:U) justified — S:C only if confirmed cross-boundary impact
+
+4. EVIDENCE — Complete chain:
+   - [ ] Each finding has evidence/ directory with real captured output
+   - [ ] **Visual PoC preferred**: If the vulnerability has a browser-renderable component (XSS, CSRF, open redirect, clickjacking), capture a browser screenshot (Playwright or manual) showing the actual exploit firing (e.g., `alert()` popup, redirect, DOM change). Terminal/curl evidence is supplementary for these — the primary screenshot MUST be visual.
+   - [ ] For server-side-only findings (SSRF, race conditions, blind injection), terminal/Collaborator evidence is acceptable as primary
+   - [ ] HTTP request + response pairs saved as text files
+   - [ ] PoC scripts are functional and referenced in Steps to Reproduce
+```
+
+**If any check fails, fix the report BEFORE presenting to the user.** Do not present reports with known reproducibility issues.
+
 ### Validation Before Upload
 
-After all reports are written locally:
+After the reproducibility review passes:
 ```
 1. Present summary table to user:
    | # | Title | Severity | CVSS | CWE | Endpoint |
