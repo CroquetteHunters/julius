@@ -13,7 +13,48 @@ Shared validation, compliance, and quality logic for security testing platforms.
 1. `poc.py` - Executable exploit script
 2. `poc_output.txt` - Timestamped execution proof
 3. `workflow.md` - Manual steps (if applicable)
-4. Evidence screenshots/videos
+4. `evidence/` directory with real captured evidence (see Visual Evidence Standard below)
+
+## Visual Evidence Standard (MANDATORY)
+
+All evidence MUST be captured from real interactions — never simulated, reconstructed, or mocked.
+
+**Browser-renderable vulnerabilities** (XSS, CSRF, open redirect, clickjacking, DOM manipulation, auth bypass with UI):
+- **PRIMARY**: Browser screenshot via Playwright MCP (`playwright_screenshot`) showing the exploit firing (alert popup, redirect, DOM change, unauthorized access)
+- **SUPPLEMENTARY**: Raw HTTP request/response logs as text files
+- A finding with only terminal output for a browser-renderable vuln = **REJECTED at validation gate**
+
+**Server-side vulnerabilities** (SSRF, race conditions, blind injection, command injection, deserialization):
+- **PRIMARY**: Real `curl` command output (copy-pasteable command + actual response), Burp Collaborator interaction proof, or direct tool output
+- **SUPPLEMENTARY**: Playwright screenshot of the Collaborator/webhook showing the OOB callback
+- All commands must be real, executed, and show actual timestamps
+
+**What counts as valid evidence**:
+- Playwright screenshots (browser rendering of exploit result)
+- `curl -v` output (real request + response with headers)
+- Burp Suite HTTP history exports (via MCP)
+- Burp Collaborator interaction logs
+- Tool output (nmap, nuclei, sqlmap, ffuf) — raw, not summarized
+- Logcat/Frida output from real device/emulator (with timestamps)
+
+**What is NEVER valid evidence**:
+- Simulated terminal output (text formatted to look like a terminal)
+- Reconstructed HTTP responses (written from memory, not captured)
+- Generic screenshots from documentation or tutorials
+- Placeholder images or diagrams
+- AI-generated mock responses
+- Screenshots of code editors showing "what would happen"
+
+**Evidence file naming convention**:
+```
+evidence/
+├── screenshot-exploit-firing.png     # Playwright browser capture
+├── curl-request-response.txt         # Real curl -v output
+├── burp-http-exchange.txt            # Burp MCP export
+├── collaborator-interaction.png      # OOB callback proof
+├── raw-source.txt                    # Raw tool output
+└── video-poc.mp4                     # Screen recording (if applicable)
+```
 
 **Experimentation**: Test edge cases, verify impact, document failures.
 
@@ -70,7 +111,7 @@ Deploy **`pentester-validator`** agent per finding (all in parallel) to run 5 an
    - Impact claims are supported by evidence (no "could steal tokens" without proof)
    - CVSS vector, score, and severity all computed and aligned
    - Evidence directory has real captured output (screenshots, HTTP logs, PoC scripts)
-   - **Visual PoC preferred**: If the vuln has a browser-renderable component (XSS, CSRF, open redirect), capture a browser screenshot showing the exploit firing (alert popup, redirect, DOM change). Terminal output is supplementary — visual evidence is primary for these types.
+   - **Visual evidence enforced** (see Visual Evidence Standard): browser-renderable vulns MUST have Playwright screenshots; server-side vulns MUST have real curl/tool output. Simulated terminal output = REJECTED.
 6. **Present findings to user for review**: Show a summary of each finding with severity, evidence quality, OOS risk assessment, and business logic verification result. Let the user decide which to submit.
 
 ## AI Usage Compliance (MANDATORY)

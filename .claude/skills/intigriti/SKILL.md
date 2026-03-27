@@ -155,8 +155,9 @@ Required fields (Intigriti standard):
 5. **Description** (Markdown, detailed explanation)
 6. **Steps to Reproduce** (numbered, clear)
 7. **Impact** (realistic attack scenario)
-8. **Raw HTTP requests/responses** (text format, not screenshots)
-9. **Role used** (e.g., user, admin, guest, unauthenticated)
+8. **Raw HTTP requests/responses** (text format, supplementary to visual evidence)
+9. **Visual evidence** (Playwright screenshots for browser-renderable vulns, real curl/tool output for server-side — see `/bounty-validation` Visual Evidence Standard)
+10. **Role used** (e.g., user, admin, guest, unauthenticated)
 
 Use `tools/report_validator.py` to validate.
 
@@ -172,13 +173,17 @@ outputs/intigriti-<program>/
 │   │   ├── report.md             # Intigriti report
 │   │   ├── poc.py                # Validated PoC
 │   │   ├── poc_output.txt        # Proof
-│   │   └── workflow.md           # Manual steps
+│   │   ├── workflow.md           # Manual steps
+│   │   └── evidence/             # Per-finding evidence
+│   │       ├── screenshot-*.png  # Playwright browser captures
+│   │       ├── curl-*.txt        # Real curl -v output
+│   │       └── raw-source.txt    # Raw tool output
 ├── reports/
 │   ├── submissions/
 │   │   ├── INTI_CRITICAL_001.md  # Ready to submit
 │   │   └── INTI_HIGH_001.md
 │   └── SUBMISSION_GUIDE.md
-└── evidence/
+└── evidence/                     # Shared engagement evidence
     ├── screenshots/
     └── http-logs/
 ```

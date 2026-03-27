@@ -90,8 +90,8 @@ Required sections (HackerOne standard):
 1. Summary (2-3 sentences)
 2. Severity (CVSS + business impact)
 3. Steps to Reproduce (numbered, clear)
-4. Raw HTTP requests/responses (text format)
-5. Visual Evidence (screenshots/video)
+4. Raw HTTP requests/responses (real curl -v output, not reconstructed)
+5. Visual Evidence (Playwright browser screenshots for browser-renderable vulns, real tool output for server-side — see `/bounty-validation` Visual Evidence Standard)
 6. Impact (realistic attack scenario)
 7. Remediation (actionable fixes)
 
@@ -111,13 +111,17 @@ outputs/<program>/
 │   │   ├── report.md           # HackerOne report
 │   │   ├── poc.py              # Validated PoC
 │   │   ├── poc_output.txt      # Proof
-│   │   └── workflow.md         # Manual steps
+│   │   ├── workflow.md         # Manual steps
+│   │   └── evidence/           # Per-finding evidence
+│   │       ├── screenshot-*.png # Playwright browser captures
+│   │       ├── curl-*.txt       # Real curl -v output
+│   │       └── raw-source.txt   # Raw tool output
 ├── reports/
 │   ├── submissions/
 │   │   ├── H1_CRITICAL_001.md  # Ready to submit
 │   │   └── H1_HIGH_001.md
 │   └── SUBMISSION_GUIDE.md
-└── evidence/
+└── evidence/                   # Shared engagement evidence
     ├── screenshots/
     └── http-logs/
 ```
