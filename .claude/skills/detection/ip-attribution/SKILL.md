@@ -3,17 +3,6 @@ name: ip-attribution
 description: Maps IP addresses to cloud providers, ASNs, and organizations via WHOIS
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-  PostToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # IP Attribution Skill

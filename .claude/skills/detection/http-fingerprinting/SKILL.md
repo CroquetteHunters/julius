@@ -3,19 +3,6 @@ name: http-fingerprinting
 description: Analyzes HTTP responses for technology signatures in headers, cookies, and error pages
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_evidence_capture_hook.sh"
 ---
 
 # HTTP Fingerprinting Skill

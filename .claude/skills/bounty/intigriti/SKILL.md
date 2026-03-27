@@ -193,6 +193,9 @@ See `reference/PLATFORM_GUIDE.md` for full comparison.
 - `/bounty-validation` skill - Validation + compliance + quality
 - `/mobile-app-acquisition` skill - Mobile app download from emulators
 - `/mobile-security` skill - Mobile app analysis
+- `/burp-suite` skill - Active scanning, Collaborator OOB testing (via bounty-recon)
+- `/hexstrike` skill - 150+ security tools for parallel recon and testing
+- `/authenticating` skill - Auth bypass, 2FA, CAPTCHA testing
 - `dom-xss-scanner` agent - Automated DOM XSS via Playwright (auto for JS targets)
 - **Utility agents**: `patt-fetcher`, `script-generator`, `pentester-validator`
 

@@ -182,7 +182,7 @@ SAST scanning: OWASP Top 10, CWE Top 25, hardcoded secrets, dependency CVEs, ins
 
 Lightweight coordinator skills that run recon tools or orchestrate other skills:
 
-`/domain-assessment` `/web-application-mapping` `/subdomain_enumeration` `/dns_intelligence` `/certificate_transparency` `/http_fingerprinting` `/tls_certificate_analysis` `/security_posture_analyzer` `/cdn_waf_fingerprinter` `/frontend_inferencer` `/backend_inferencer` `/cloud_infra_detector` `/devops_detector` `/third_party_detector` `/ip_attribution` `/domain_discovery` `/code_repository_intel` `/job_posting_analysis` `/web_archive_analysis`
+`/domain-assessment` `/web-application-mapping` `/subdomain-enumeration` `/dns-intelligence` `/certificate-transparency` `/http-fingerprinting` `/tls-certificate-analysis` `/security-posture-analyzer` `/cdn-waf-fingerprinter` `/frontend-inferencer` `/backend-inferencer` `/cloud-infra-detector` `/devops-detector` `/third-party-detector` `/ip-attribution` `/domain-discovery` `/code-repository-intel` `/job-posting-analysis` `/web-archive-analysis`
 
 ---
 

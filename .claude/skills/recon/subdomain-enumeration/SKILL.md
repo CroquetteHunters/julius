@@ -3,19 +3,6 @@ name: subdomain-enumeration
 description: Enumerates subdomains using CT logs, passive DNS, and search engine dorks
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # Subdomain Enumeration Skill

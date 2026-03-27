@@ -3,17 +3,6 @@ name: domain-discovery
 description: Discovers official company domain via web search, WHOIS, and common TLD patterns
 tools: Bash, WebSearch, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-  PostToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # Domain Discovery Skill

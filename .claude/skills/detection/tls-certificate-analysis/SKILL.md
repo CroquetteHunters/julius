@@ -3,17 +3,6 @@ name: tls-certificate-analysis
 description: Analyzes TLS certificates for issuer, SAN, and JARM fingerprints
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-  PostToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # TLS Certificate Analysis Skill

@@ -3,19 +3,6 @@ name: job-posting-analysis
 description: Extracts technology requirements from job postings and career pages
 tools: Bash, WebFetch, WebSearch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # Job Posting Analysis Skill

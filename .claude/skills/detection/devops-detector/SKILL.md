@@ -3,12 +3,6 @@ name: devops-detector
 description: Detects CI/CD tools, containerization, and orchestration from public signals
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # DevOps Detector Skill

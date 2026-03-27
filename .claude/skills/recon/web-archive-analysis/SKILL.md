@@ -3,17 +3,6 @@ name: web-archive-analysis
 description: Uses Wayback Machine to detect technology migrations over time
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # Web Archive Analysis Skill

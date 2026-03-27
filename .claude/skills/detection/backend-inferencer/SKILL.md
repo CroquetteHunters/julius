@@ -3,12 +3,6 @@ name: backend-inferencer
 description: Infers backend technologies including servers, languages, frameworks, databases, and CMS
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # Backend Inferencer Skill

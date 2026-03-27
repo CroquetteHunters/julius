@@ -3,12 +3,6 @@ name: security-posture-analyzer
 description: Analyzes security headers, CSP, HSTS, WAF presence, and security.txt
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # Security Posture Analyzer Skill

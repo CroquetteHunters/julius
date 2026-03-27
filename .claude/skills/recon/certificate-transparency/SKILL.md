@@ -3,17 +3,6 @@ name: certificate-transparency
 description: Queries CT logs for certificates and extracts SANs for subdomain discovery
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # Certificate Transparency Skill

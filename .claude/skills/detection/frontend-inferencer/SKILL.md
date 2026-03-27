@@ -3,12 +3,6 @@ name: frontend-inferencer
 description: Infers frontend technologies including React, Angular, Vue, jQuery, Bootstrap, etc.
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # Frontend Inferencer Skill

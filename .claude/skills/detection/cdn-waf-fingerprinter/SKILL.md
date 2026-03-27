@@ -3,12 +3,6 @@ name: cdn-waf-fingerprinter
 description: Identifies CDNs (Cloudflare, Akamai, Fastly) and WAFs
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # CDN/WAF Fingerprinter Skill

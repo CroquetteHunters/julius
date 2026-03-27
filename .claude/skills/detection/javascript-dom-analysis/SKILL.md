@@ -3,19 +3,6 @@ name: javascript-dom-analysis
 description: Detects frontend frameworks via global variables, DOM attributes, and bundle patterns
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_evidence_capture_hook.sh"
 ---
 
 # JavaScript/DOM Analysis Skill

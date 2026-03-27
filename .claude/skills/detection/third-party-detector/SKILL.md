@@ -3,12 +3,6 @@ name: third-party-detector
 description: Identifies third-party services including payments, analytics, auth, CRM, and support
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # Third-Party Detector Skill

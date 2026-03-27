@@ -3,17 +3,6 @@ name: code-repository-intel
 description: Scans GitHub/GitLab for public repos, dependencies, and CI configurations
 tools: Bash, WebFetch
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_rate_limit_hook.sh"
-  PostToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_skill_logging_hook.sh"
 ---
 
 # Code Repository Intelligence Skill

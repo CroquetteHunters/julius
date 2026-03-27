@@ -3,17 +3,6 @@ name: html-content-analysis
 description: Parses HTML for meta tags, generator comments, and script URL patterns
 tools: Bash, WebFetch, Grep
 model: inherit
-hooks:
-  PreToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/pre_network_skill_hook.sh"
-  PostToolUse:
-    - matcher: "WebFetch"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_evidence_capture_hook.sh"
 ---
 
 # HTML Content Analysis Skill

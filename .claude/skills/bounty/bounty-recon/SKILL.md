@@ -57,7 +57,7 @@ Feed discovered endpoints to pentester agents for targeted testing (hidden admin
 4. **nuclei** vuln scan: `nuclei -l live.txt -severity medium,high,critical -timeout 10`
    - Run in background (~10-15 min); review for false positives
 
-See `/subdomain_enumeration` skill for detailed lessons learned and gotchas.
+See `/subdomain-enumeration` skill for detailed lessons learned and gotchas.
 
 ## Extended Recon (AUTOMATIC, parallel with post-enumeration pipeline)
 
@@ -68,6 +68,7 @@ Deploy these skills **in parallel** during recon to expand attack surface and in
 3. **`/web-application-mapping`** — Comprehensive endpoint discovery via passive browsing + headless automation. Maps forms, AJAX calls, WebSocket connections, and hidden functionality.
 4. **`/security-posture-analyzer`** — Enumerate security headers (CSP, HSTS, X-Frame-Options), WAF presence, and security.txt. Results directly inform payload selection and bypass strategy.
 5. **`/cdn-waf-fingerprinter`** — Identify CDN (Cloudflare, Akamai, Fastly) and WAF. Critical for: filtering ffuf results, selecting XSS payloads that bypass WAF rules, identifying origin IP bypass opportunities.
+6. **`/hexstrike`** — Deploy HexStrike AI (150+ tools) for parallel recon automation: nmap, nuclei, gobuster, subfinder, httpx, and more. Especially useful for large scope with many assets.
 
 **Feed results to pentester agents**: All discovered endpoints, API specs, security posture data, and WAF fingerprints are passed as context to each Pentester agent to enable targeted testing.
 

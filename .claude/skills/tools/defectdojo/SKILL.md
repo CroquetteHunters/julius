@@ -366,6 +366,21 @@ Phase 2 — Upload (after user approval):
 - [ ] Tag findings with CVE ID for deduplication
 ```
 
+**Option 6: Import Source Code Scanning Findings**
+```
+Phase 1 — Local:
+- [ ] Validate API credentials
+- [ ] Read from outputs/{project}/findings/ produced by /source-code-scanning
+- [ ] Ensure SAST fields in frontmatter: static_finding=true, file_path, line, sast_source_*
+- [ ] Write to outputs/defectdojo-{engagement}/findings/
+- [ ] Present summary → user validates
+
+Phase 2 — Upload (after user approval):
+- [ ] Import with static_finding=true, dynamic_finding=false
+- [ ] Map file_path, line, sast_source_file_path, sast_source_line, sast_source_object, sast_sink_object
+- [ ] Upload code snippets and evidence as attachments
+```
+
 ## Finding Format (MANDATORY)
 
 Every finding MUST be written as a local `report.md` file first (see Phase 1). The report.md frontmatter maps directly to DefectDojo API fields during Phase 2 upload.

@@ -3,12 +3,6 @@ name: cloud-infra-detector
 description: Detects cloud providers (AWS, Azure, GCP) and PaaS platforms
 tools: Read, Grep
 model: inherit
-hooks:
-  PostToolUse:
-    - matcher: "Read"
-      hooks:
-        - type: command
-          command: "../../../../hooks/skills/post_output_validation_hook.sh"
 ---
 
 # Cloud Infrastructure Detector Skill

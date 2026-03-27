@@ -47,16 +47,14 @@
 ## Testing Methodologies
 
 **PTES** (7 phases): Pre-engagement → Intelligence → Threat modeling → Vulnerability analysis → Exploitation → Post-exploitation → Reporting
-[Details: `.claude/skills/pentest/attacks/essential-skills/methodology/ptes.md`]
 
 **OWASP WSTG**: 11 categories covering info gathering → client-side security
-[Details: `.claude/skills/pentest/attacks/essential-skills/methodology/owasp-wstg.md`]
 
 **MITRE ATT&CK**: Reconnaissance → Initial Access → Execution → Persistence → Privilege Escalation → Defense Evasion → Credential Access → Discovery → Lateral Movement → Collection → C2 → Exfiltration → Impact
-[Details: `.claude/skills/pentest/attacks/essential-skills/methodology/mitre-attack.md`]
 
 **Flaw Hypothesis**: Stack analysis → Predict vulnerabilities → Test → Generalize → Correlate findings → Report
-[Details: `.claude/skills/pentest/attacks/essential-skills/methodology/flaw-hypothesis.md`]
+
+[Reference: `.claude/skills/pentest/attacks/essential-skills/methodology/`]
 
 ---
 
