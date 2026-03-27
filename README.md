@@ -25,103 +25,146 @@ Built on top of [Transilience AI Community Tools](https://github.com/transilienc
 | **47 skills** | Pentesting, recon, bug bounty, cloud, mobile, SAST, reporting |
 | **6 agents** | DOM XSS scanner, finding validator, script generator, payload fetcher, HackTheBox, skill creator |
 | **186 attack docs** | PortSwigger Academy solutions, cheat sheets, methodology guides |
-| **38+ engagements** | Active bug bounty and pentest outputs (gitignored) |
-| **3 bug bounty platforms** | HackerOne, Intigriti, DefectDojo |
-| **Tool integrations** | Burp Suite MCP, HexStrike AI, Playwright, Kali toolset |
+| **2 bug bounty platforms** | HackerOne, Intigriti |
+| **Vulnerability management** | DefectDojo integration (IAP auth, API import, evidence upload) |
+| **Tool integrations** | Burp Suite MCP, HexStrike AI (150+ tools), Playwright, Kali toolset, RecoX |
 
 ---
 
-## Architecture
+## Bug Bounty Workflow
 
-Following [Vercel's research](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), Julius uses a hybrid architecture:
+The primary use case. Two entry points depending on platform:
 
-- **`AGENTS.md`** — Always loaded. Compressed security knowledge: vulnerability payloads, CVSS reference, methodology frameworks (PTES, OWASP, MITRE), bug bounty reporting policy.
-- **Skills** (`.claude/skills/`) — User-triggered via `/skill-name`. Handle multi-step orchestration, parallel agent deployment, user approval gates, and reporting workflows.
-- **Agents** (`.claude/agents/`) — Reusable specialized subprocesses spawned by skills for focused tasks.
+```bash
+/intigriti <program_url_or_pdf>    # Intigriti programs (API scope fetch, tier prioritization)
+/hackerone <program_url_or_csv>    # HackerOne programs (CSV scope parsing)
+```
+
+### What happens when you run `/intigriti` or `/hackerone`
 
 ```
-julius/
-├── AGENTS.md                        # Passive knowledge base (always loaded)
-├── CLAUDE.md                        # Repository instructions
-├── .claude/
-│   ├── skills/
-│   │   ├── pentest/                 # Core pentesting — 11 attack categories, 186 docs
-│   │   ├── offensive/               # Targeted testing skills
-│   │   │   ├── ai-threat-testing/       # OWASP LLM Top 10
-│   │   │   ├── authenticating/          # Auth, 2FA, CAPTCHA, bot evasion
-│   │   │   ├── common-appsec-patterns/  # OWASP Top 10 quick testing
-│   │   │   ├── cve-testing/             # Known CVE testing
-│   │   │   ├── cve-poc-generator/       # CVE research + PoC generation
-│   │   │   └── source-code-scanning/    # SAST + dependency CVE scanning
-│   │   ├── recon/                   # Reconnaissance (10 skills)
-│   │   │   ├── domain-assessment/       # Subdomain discovery + port scanning
-│   │   │   ├── web-application-mapping/ # Endpoint discovery, tech detection
-│   │   │   ├── subdomain-enumeration/   # CT logs, passive DNS, dorks
-│   │   │   ├── dns-intelligence/        # MX, TXT, NS, CNAME, SRV analysis
-│   │   │   └── ...                      # + 6 more recon skills
-│   │   ├── detection/               # Technology detection (15 skills)
-│   │   │   ├── frontend-inferencer/     # React, Angular, Vue detection
-│   │   │   ├── backend-inferencer/      # Server/framework/CMS detection
-│   │   │   ├── cdn-waf-fingerprinter/   # Cloudflare, Akamai, WAFs
-│   │   │   └── ...                      # + 12 more detection skills
-│   │   ├── bounty/                  # Bug bounty workflows
-│   │   │   ├── hackerone/               # HackerOne automation
-│   │   │   ├── intigriti/               # Intigriti automation (API, tiers)
-│   │   │   ├── bounty-recon/            # Shared recon pipeline
-│   │   │   ├── bounty-validation/       # Shared validation + anti-hallucination
-│   │   │   └── mobile-app-acquisition/  # APK/IPA download from emulators
-│   │   ├── infrastructure/          # Cloud, container, mobile security
-│   │   │   ├── cloud-security/          # AWS, Azure, GCP
-│   │   │   ├── container-security/      # Docker, Kubernetes
-│   │   │   └── mobile-security/         # MobSF + Frida
-│   │   ├── tools/                   # Tool integrations
-│   │   │   ├── burp-suite/              # Burp Suite MCP
-│   │   │   ├── hexstrike/               # HexStrike AI (150+ tools)
-│   │   │   └── defectdojo/             # DefectDojo vuln management
-│   │   ├── reporting/               # Output and reporting
-│   │   │   ├── evidence-formatter/
-│   │   │   ├── json-report-generator/
-│   │   │   └── report-exporter/
-│   │   └── skiller/                 # Skill creation and management
-│   │
-│   └── agents/                      # 6 reusable agents
-│       ├── dom-xss-scanner.md       # Automated DOM XSS via Playwright
-│       ├── pentester-validator.md   # Anti-hallucination finding validation
-│       ├── script-generator.md      # Optimized PoC script generation
-│       ├── patt-fetcher.md          # PayloadsAllTheThings fetcher
-│       ├── hackthebox.md            # HackTheBox challenge orchestrator
-│       └── skiller.md               # Skill creation automation
-│
-├── tools/                           # External tool installers + scripts
-│   ├── playwright/                  # Browser automation setup
-│   ├── kali/                        # nmap, ffuf, sqlmap, nikto, etc.
-│   └── recox/                       # Wayback/CommonCrawl endpoint discovery
-│
-├── outputs/                         # Engagement outputs (gitignored)
-├── templates/                       # Skill templates
-└── CONTRIBUTING.md
+1. SCOPE PARSING
+   Parse program scope → extract assets, tiers, bounty table, OOS list
+   Present prioritized attack plan → user approves before testing starts
+
+2. RECONNAISSANCE (bounty-recon)
+   ├── Endpoint recon: tools/recox (Wayback, CommonCrawl, OTX, URLScan)
+   ├── Post-enumeration: httpx → naabu → ffuf → nuclei
+   ├── Extended recon (parallel skills):
+   │   ├── /code-repository-intel     — GitHub/GitLab leaked secrets, CI configs
+   │   ├── /api-portal-discovery      — OpenAPI/Swagger specs, dev docs
+   │   ├── /web-application-mapping   — Headless browsing, endpoint discovery
+   │   ├── /security-posture-analyzer — Headers, CSP, WAF, security.txt
+   │   ├── /cdn-waf-fingerprinter     — CDN/WAF identification for bypass strategy
+   │   └── /hexstrike                 — 150+ tools for large-scope parallel recon
+   └── Conditional triggers (based on recon results):
+       ├── /cve-testing + /cve-poc-generator  — When specific software versions found
+       ├── /source-code-scanning              — When exposed source code found
+       ├── /ai-threat-testing                 — When AI/LLM features detected
+       ├── /authenticating                    — When login forms discovered
+       ├── /cloud-security                    — When AWS/Azure/GCP infra detected
+       ├── /container-security                — When K8s/Docker indicators found
+       └── /burp-suite                        — Active scanning + Collaborator OOB
+
+3. TESTING (parallel agents per asset, tier-prioritized)
+   ├── Pentester agents: 40+ attack types across 11 categories
+   ├── DOM XSS scanner: auto-deployed for JS-heavy targets (React, Vue, Angular)
+   ├── patt-fetcher: on-demand PayloadsAllTheThings payloads
+   ├── script-generator: PoC scripts (>30 lines, parallelized, syntax-validated)
+   └── /mobile-security: MobSF + Frida for mobile assets
+
+4. VALIDATION (bounty-validation)
+   ├── Every finding requires: poc.py + poc_output.txt + evidence/
+   ├── pentester-validator agent: CVSS consistency, evidence check, PoC syntax
+   ├── Business logic verification: is this "by design"?
+   ├── OOS check: cross-reference against program exclusions
+   └── AI disclosure section (mandatory)
+
+5. SUBMISSION
+   Platform-ready reports with CVSS, CWE, steps to reproduce, remediation
+```
+
+### Bug bounty rules (enforced)
+
+- **No PoC = No Report** — Every finding needs a working exploit demo
+- **CVSS must be calculated** — Never guessed. Use Python/bash calculator
+- **Business logic verification** — Verify findings are not "by design" before reporting
+- **AI disclosure mandatory** — All reports include AI usage transparency
+- **Out of scope** — CORS, missing headers, self-XSS, version disclosure, rate limiting (unless ATO), username enumeration
+
+---
+
+## DefectDojo Workflow
+
+Separate from bug bounty. Used for internal pentests, code reviews, and vulnerability management.
+
+```bash
+/defectdojo <product> [engagement]
+```
+
+### Workflow
+
+```
+1. AUTHENTICATE
+   ├── Reads DEFECTDOJO_URL + DEFECTDOJO_TOKEN env vars
+   └── Google Cloud IAP auth via Playwright (cookie cache with ~1h TTL)
+
+2. TESTING (using /pentest, /source-code-scanning, or manual review)
+   Run your security assessment — pentest, code review, or scan
+
+3. LOCAL REPORTS (Phase 1 — always before any upload)
+   ├── Each finding → outputs/defectdojo-{engagement}/findings/finding-NNN/report.md
+   ├── YAML frontmatter: title, cwe, cvssv3, severity, endpoint or file_path
+   ├── Markdown body: Description, Impact, Steps to Reproduce, Mitigation
+   ├── Evidence: screenshots, PoC scripts, HTTP logs in evidence/
+   └── Present summary table → user reviews locally
+
+4. UPLOAD (Phase 2 — only after explicit user approval)
+   ├── Create "Manual Review" test in engagement
+   ├── Import findings with CWE mapping and evidence
+   ├── Findings created as active=false, verified=false (user reviews in DD)
+   └── Deduplication against existing findings
+```
+
+### Finding sources DefectDojo supports
+
+| Source | How |
+|--------|-----|
+| Manual pentest | Option 1: Security code review → local reports → upload |
+| Pentest findings | Option 2: Read from `outputs/{engagement}/findings/` |
+| Scanner output | Option 3: Reimport nuclei, ZAP, Burp, Trivy, Semgrep, etc. (150+ formats) |
+| CVE PoCs | Option 5: Import from `outputs/processed/cve-pocs/` |
+| Source code scanning | Option 6: SAST findings with `static_finding=true`, `file_path`, `sast_source_*` fields |
+
+### SAST fields for code review findings
+
+```yaml
+---
+title: "SSRF via unvalidated URL input"
+cwe: 918
+cvssv3: "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:L/A:N"
+cvssv3_score: 7.5
+severity: High
+static_finding: true
+dynamic_finding: false
+file_path: "src/app/Domain/Action.php"
+line: 42
+sast_source_file_path: "src/app/Http/Controllers/ExampleController.php"
+sast_source_line: 15
+sast_source_object: "$request->input('url')"
+sast_sink_object: "Http::get()"
+---
 ```
 
 ---
 
-## Core Skills
-
-### Penetration Testing
+## Pentest Skill
 
 ```bash
 /pentest
 ```
 
-The main skill. Runs a 6-phase pentest:
-
-1. **Initialization** — Scope, engagement folder
-2. **Reconnaissance** — Subdomain enum, port scanning, tech detection
-3. **Planning** — Test plan → user approval gate
-4. **Testing** — Parallel agents across 11 attack categories (40+ attack types)
-5. **Aggregation** — Dedup, chain discovery, severity calculation
-6. **Reporting** — Findings with CVSS, CWE, evidence, remediation
-
-**Attack categories:**
+6-phase pentest orchestrator with 40+ attack types across 11 categories:
 
 | Category | Types |
 |----------|-------|
@@ -133,71 +176,38 @@ The main skill. Runs a 6-phase pentest:
 | Cloud/Containers | AWS, Azure, GCP, Docker, Kubernetes |
 | Infrastructure | DNS, port scanning, MITM, SMB/NetBIOS |
 
-### Bug Bounty
+Each attack type has PortSwigger Academy solutions, cheat sheets, and methodology docs in `.claude/skills/pentest/attacks/`.
 
-```bash
-/hackerone    # HackerOne programs — scope CSV parsing, parallel testing, platform-ready reports
-/intigriti    # Intigriti programs — API scope fetch, tier prioritization, EU-formatted reports
-```
+---
 
-Both share:
-- `/bounty-recon` — Recon pipeline: httpx, naabu, ffuf, nuclei, endpoint recon, parallel skill deployment
-- `/bounty-validation` — 5-point anti-hallucination validation, OOS checks, business logic verification, AI compliance disclosure
+## Other Skills
 
-**Active programs** (from `outputs/`): Tomorrowland, NVIDIA, Yahoo, Capital.com, Miro, Bitvavo, DataCamp, Revolut, Rivian, Grafana, Generali, Hitta, DigitalOcean, Rosenberger, ST, BMW, CaixaBank, AS Watson, Madrid...
+### Offensive Testing
 
-### Vulnerability Management
+| Skill | Command | What it does |
+|-------|---------|-------------|
+| Source Code Scanning | `/source-code-scanning` | SAST: OWASP Top 10, CWE Top 25, secrets, dependency CVEs |
+| AI/LLM Threats | `/ai-threat-testing` | OWASP LLM Top 10 — prompt injection, model extraction |
+| Auth Testing | `/authenticating` | Signup/login automation, 2FA bypass, CAPTCHA, bot evasion |
+| CVE Testing | `/cve-testing` | Known CVE testing with public exploits |
+| CVE PoC Generator | `/cve-poc-generator` | Research CVE → Python PoC + report |
+| OWASP Quick Test | `/common-appsec-patterns` | OWASP Top 10 quick-hit testing |
 
-```bash
-/defectdojo <product> [engagement]
-```
-
-- Phase 1: Write findings locally as `report.md` with YAML frontmatter → user reviews
-- Phase 2: Upload to DefectDojo REST API v2 (after explicit approval)
-- Google Cloud IAP authentication via Playwright
-- CWE mapping, evidence upload, deduplication
-- Findings created as `active=false, verified=false` — user must review in DefectDojo
-
-### Source Code Review
-
-```bash
-/source-code-scanning
-```
-
-SAST scanning: OWASP Top 10, CWE Top 25, hardcoded secrets, dependency CVEs, insecure patterns. Produces DefectDojo-compatible findings with `file_path`, `line`, `sast_source_*` fields.
-
-### Specialized Testing
+### Infrastructure
 
 | Skill | Command | What it does |
 |-------|---------|-------------|
 | Cloud Security | `/cloud-security` | AWS/Azure/GCP — IAM, storage, serverless, CIS Benchmarks |
-| Container Security | `/container-security` | Docker image scanning, K8s RBAC, pod security, escape testing |
+| Container Security | `/container-security` | Docker/K8s — RBAC, pod security, escape testing |
 | Mobile Security | `/mobile-security` | MobSF static + Frida dynamic (OWASP Mobile Top 10) |
-| AI/LLM Threats | `/ai-threat-testing` | OWASP LLM Top 10 — prompt injection, model extraction, data poisoning |
-| Auth Testing | `/authenticating` | Signup/login automation, 2FA bypass, CAPTCHA solving, bot evasion |
-| CVE Testing | `/cve-testing` | Known CVE testing with public exploits |
-| CVE PoC Generator | `/cve-poc-generator` | Research CVE → generate Python PoC + report |
 
-### Reconnaissance (19 skills)
+### Reconnaissance (10 skills)
 
-Lightweight coordinator skills that run recon tools or orchestrate other skills:
+`/domain-assessment` `/web-application-mapping` `/subdomain-enumeration` `/dns-intelligence` `/certificate-transparency` `/domain-discovery` `/code-repository-intel` `/api-portal-discovery` `/job-posting-analysis` `/web-archive-analysis`
 
-`/domain-assessment` `/web-application-mapping` `/subdomain-enumeration` `/dns-intelligence` `/certificate-transparency` `/http-fingerprinting` `/tls-certificate-analysis` `/security-posture-analyzer` `/cdn-waf-fingerprinter` `/frontend-inferencer` `/backend-inferencer` `/cloud-infra-detector` `/devops-detector` `/third-party-detector` `/ip-attribution` `/domain-discovery` `/code-repository-intel` `/job-posting-analysis` `/web-archive-analysis`
+### Technology Detection (15 skills)
 
----
-
-## Agents
-
-Agents are specialized subprocesses spawned by skills:
-
-| Agent | Purpose |
-|-------|---------|
-| **dom-xss-scanner** | Injects canary tokens through DOM sources, hooks sinks, detects taint flow, escalates with context-aware payloads |
-| **pentester-validator** | Anti-hallucination: CVSS consistency, evidence existence, PoC syntax, claims-vs-evidence corroboration |
-| **script-generator** | Generates parallelized, syntax-validated PoC scripts (>30 lines) |
-| **patt-fetcher** | Fetches PayloadsAllTheThings payloads on demand (30+ categories) |
-| **hackthebox** | Orchestrates HackTheBox challenges — VPN, login, solving, writeup |
-| **skiller** | Automated skill directory creation and validation |
+`/frontend-inferencer` `/backend-inferencer` `/http-fingerprinting` `/tls-certificate-analysis` `/cdn-waf-fingerprinter` `/cloud-infra-detector` `/devops-detector` `/third-party-detector` `/ip-attribution` `/security-posture-analyzer` `/html-content-analysis` `/javascript-dom-analysis` `/confidence-scorer` `/conflict-resolver` `/signal-correlator`
 
 ---
 
@@ -206,10 +216,23 @@ Agents are specialized subprocesses spawned by skills:
 | Tool | Integration | Used for |
 |------|-------------|----------|
 | **Burp Suite** | MCP (PortSwigger) | Active scanning, Collaborator OOB, traffic replay, sitemap |
-| **HexStrike AI** | MCP server | 150+ tools: network, web, binary, cloud, auth |
-| **Playwright** | MCP | DOM XSS, auth testing, screenshot evidence, client-side validation |
+| **HexStrike AI** | MCP server | 150+ tools: nmap, nuclei, sqlmap, gobuster, subfinder, etc. |
+| **Playwright** | MCP | DOM XSS, auth testing, screenshot evidence, IAP auth |
 | **Kali tools** | CLI | nmap, ffuf, sqlmap, nikto, gobuster, testssl, dig |
-| **recox_endpoint_recon.py** | Script | Wayback Machine, Common Crawl, OTX, URLScan endpoint discovery |
+| **RecoX** | Script | Wayback Machine, Common Crawl, OTX, URLScan endpoint discovery |
+
+---
+
+## Agents
+
+| Agent | Purpose |
+|-------|---------|
+| **dom-xss-scanner** | Injects canary tokens through DOM sources, hooks sinks, detects taint flow |
+| **pentester-validator** | Anti-hallucination: CVSS consistency, evidence existence, PoC syntax, claims corroboration |
+| **script-generator** | Generates parallelized, syntax-validated PoC scripts (>30 lines) |
+| **patt-fetcher** | Fetches PayloadsAllTheThings payloads on demand (30+ categories) |
+| **hackthebox** | Orchestrates HackTheBox challenges — VPN, login, solving, writeup |
+| **skiller** | Automated skill directory creation and validation |
 
 ---
 
@@ -223,14 +246,18 @@ cd julius
 # Open in Claude Code
 claude .
 
-# Run a pentest
+# Bug bounty
+/intigriti <program_url>
+/hackerone <scope_csv>
+
+# Internal pentest
 /pentest
 
-# Run a bug bounty program
-/intigriti
+# Import findings to DefectDojo
+/defectdojo <product> <engagement>
 
-# Create a new skill
-/skiller
+# Source code review
+/source-code-scanning
 ```
 
 Skills auto-load from `.claude/skills/`. No additional configuration needed.
@@ -247,65 +274,48 @@ bash tools/playwright/install.sh
 
 ---
 
-## Output Structure
-
-All engagements produce outputs in `outputs/<engagement>/` (gitignored):
+## Repository Structure
 
 ```
-outputs/{engagement}/
-├── report/                    # Final deliverables
-│   ├── Penetration-Test-Report.docx
-│   ├── pentest-report.json
-│   └── appendix/
-└── processed/                 # Working files
-    ├── reconnaissance/        # Recon results
-    ├── findings/              # Individual findings
-    │   └── finding-001/
-    │       ├── report.md      # YAML frontmatter + markdown
-    │       ├── poc.py         # Proof of concept
-    │       ├── poc_output.txt # PoC execution output
-    │       └── evidence/      # Screenshots, HTTP logs
-    └── activity/              # NDJSON logs
+julius/
+├── AGENTS.md                        # Passive knowledge base (always loaded)
+├── CLAUDE.md                        # Repository instructions
+├── .claude/
+│   ├── skills/
+│   │   ├── pentest/                 # 11 attack categories, 186 docs
+│   │   ├── offensive/               # SAST, CVE, auth, AI threats (6 skills)
+│   │   ├── recon/                   # Reconnaissance (10 skills)
+│   │   ├── detection/               # Technology detection (15 skills)
+│   │   ├── bounty/                  # HackerOne, Intigriti, shared pipelines (5 skills)
+│   │   ├── infrastructure/          # Cloud, container, mobile (3 skills)
+│   │   ├── tools/                   # Burp Suite, HexStrike, DefectDojo (3 skills)
+│   │   ├── reporting/               # Formatters and exporters (3 skills)
+│   │   └── skiller/                 # Skill creation
+│   └── agents/                      # 6 reusable agents
+├── tools/                           # Playwright, Kali, RecoX installers
+├── outputs/                         # Engagement outputs (gitignored)
+└── CONTRIBUTING.md
 ```
-
----
-
-## Bug Bounty Reporting Rules
-
-Enforced across all bug bounty skills:
-
-- **No PoC = No Report** — Every finding needs a working exploit demo
-- **CVSS must be calculated** — Never guessed. Use Python/bash calculator
-- **AI disclosure mandatory** — All reports include AI usage transparency
-- **Validation gate** — pentester-validator agent checks: CVSS consistency, evidence existence, PoC syntax, claims corroboration
-- **Business logic verification** — Verify findings are not "by design" before reporting
-- **Out of scope** — CORS, missing headers, self-XSS, version disclosure, rate limiting (unless ATO), username enumeration
 
 ---
 
 ## Contributing
 
 ```bash
-# Automated (recommended)
-/skiller
+/skiller    # Automated skill creation
 
-# Manual
-gh issue create --title "Add skill: X" --body "Description..."
+# Or manually:
 git checkout -b feature/skill-name
-# Develop, test, commit with conventional format
 # feat(scope): description | fix(scope): description
-git push && gh pr create
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## Upstream
 
-Fork of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools). Upstream changes synced periodically.
-
----
+Fork of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools).
 
 ## License
 
