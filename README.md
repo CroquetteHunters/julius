@@ -3,561 +3,311 @@
 <div align="center">
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![GitHub issues](https://img.shields.io/github/issues/CroquetteHunters/julius)](https://github.com/CroquetteHunters/julius/issues)
-[![GitHub stars](https://img.shields.io/github/stars/CroquetteHunters/julius)](https://github.com/CroquetteHunters/julius/stargazers)
 [![Claude AI](https://img.shields.io/badge/Powered%20by-Claude%20AI-blue)](https://claude.ai)
+[![GitHub issues](https://img.shields.io/github/issues/CroquetteHunters/julius)](https://github.com/CroquetteHunters/julius/issues)
 
-**Open-source Claude Code skills, agents, and slash commands for AI-powered penetration testing, bug bounty hunting, and security research**
-
-[Quick Start](#-quick-start) | [Documentation](#-documentation) | [Contributing](CONTRIBUTING.md)
+**Claude Code skills, agents, and tools for penetration testing, bug bounty hunting, and vulnerability management**
 
 </div>
 
 ---
 
-## Table of Contents
+## What is Julius?
 
-- [Overview](#-overview)
-- [Architecture](#-architecture)
-- [Available Skills](#-available-skills)
-- [Use Cases](#-use-cases)
-- [Quick Start](#-quick-start)
-- [How It Works](#-how-it-works)
-- [Contributing](#-contributing)
-- [Security & Legal](#-security--legal)
-- [Roadmap](#-roadmap)
-- [License](#-license)
+Julius is a security testing toolkit built as **Claude Code skills and agents**. It provides AI-orchestrated workflows for pentesting, bug bounty programs, and vulnerability management — all invoked via slash commands inside Claude Code.
 
----
+Built on top of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools).
 
-## Overview
+### At a glance
 
-**Julius** is a comprehensive collection of **Claude Code skills, agents, and slash commands** for security testing, penetration testing, and bug bounty hunting. Built on top of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools), it provides AI-powered security workflows that run directly in Claude Code, enabling automated vulnerability testing, reconnaissance, and professional security reporting.
-
-### What's Inside?
-
-- **42 Security Skills** - Pentest, recon, bug bounty, cloud/container/mobile security, vulnerability management
-- **35+ Specialized Agents** - SQL injection, XSS, SSRF, JWT, OAuth, SSTI, XXE, and more
-- **151 Attack Documentation Files** - PortSwigger Academy solutions, cheat sheets, quickstart guides
-- **3 Bug Bounty Platforms** - HackerOne, Intigriti, and DefectDojo integration
-- **Professional Tooling** - Burp Suite MCP, HexStrike AI (150+ tools), Playwright automation
-- **Standardized Outputs** - Professional reports with CVSS scoring and evidence
-
-### Why Choose Julius?
-
-- **AI-Powered Automation** - Claude AI orchestrates intelligent security testing workflows
-- **42 Specialized Skills** - From recon to reporting, covering the full pentest lifecycle
-- **Complete OWASP Coverage** - 100% OWASP Top 10 + SANS Top 25 CWE testing
-- **Professional Reporting** - CVSS 3.1, CWE, MITRE ATT&CK, remediation guidance
-- **Multi-Platform Bug Bounty** - HackerOne, Intigriti, and DefectDojo workflows
-- **Cloud & Container Security** - AWS, Azure, GCP, Docker, Kubernetes testing
-- **Playwright + Burp Suite** - Browser automation and professional proxy integration
-- **Open Source** - MIT licensed for commercial and personal use
+| | |
+|-|-|
+| **47 skills** | Pentesting, recon, bug bounty, cloud, mobile, SAST, reporting |
+| **6 agents** | DOM XSS scanner, finding validator, script generator, payload fetcher, HackTheBox, skill creator |
+| **186 attack docs** | PortSwigger Academy solutions, cheat sheets, methodology guides |
+| **38+ engagements** | Active bug bounty and pentest outputs (gitignored) |
+| **3 bug bounty platforms** | HackerOne, Intigriti, DefectDojo |
+| **Tool integrations** | Burp Suite MCP, HexStrike AI, Playwright, Kali toolset |
 
 ---
 
 ## Architecture
 
-### AGENTS.md + Skills Hybrid Architecture
+Following [Vercel's research](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), Julius uses a hybrid architecture:
 
-Based on [Vercel research](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), this repository uses a hybrid architecture achieving 100% pass rate in agent evals:
-
-- **AGENTS.md** (always loaded) - Compressed security knowledge base with vulnerability payloads, methodologies (PTES, OWASP, MITRE), CVSS scoring, and PoC standards
-- **Skills** (user-triggered) - Workflow orchestration invoked via `/skill-name` for multi-step processes
-
-```mermaid
-graph TB
-    subgraph "User Interface"
-        A[Security Researcher<br/>Penetration Tester<br/>Bug Bounty Hunter]
-    end
-
-    subgraph "Claude Code"
-        B[Slash Commands<br/>/pentest /hackerone /intigriti /defectdojo]
-    end
-
-    subgraph "Skills Layer — 42 Skills"
-        C1[Offensive Testing]
-        C2[Reconnaissance]
-        C3[Bug Bounty]
-        C4[Cloud & Infrastructure]
-        C5[Reporting & Integration]
-    end
-
-    subgraph "Offensive Testing Skills"
-        D1[pentest — 35+ agents]
-        D2[common-appsec-patterns]
-        D3[cve-testing]
-        D4[ai-threat-testing]
-        D5[authenticating]
-    end
-
-    subgraph "Recon Skills"
-        E1[domain-assessment]
-        E2[web-application-mapping]
-        E3[subdomain_enumeration]
-        E4[dns_intelligence]
-        E5[14+ more recon skills]
-    end
-
-    subgraph "Bug Bounty Skills"
-        F1[hackerone]
-        F2[intigriti]
-        F3[defectdojo]
-    end
-
-    subgraph "Cloud & Infrastructure"
-        G1[cloud-security — AWS/Azure/GCP]
-        G2[container-security — Docker/K8s]
-        G3[mobile-security — MobSF/Frida]
-    end
-
-    subgraph "Tooling"
-        H1[Burp Suite MCP]
-        H2[HexStrike AI — 150+ tools]
-        H3[Playwright — Browser automation]
-    end
-
-    A --> B
-    B --> C1 & C2 & C3 & C4 & C5
-    C1 --> D1 & D2 & D3 & D4 & D5
-    C2 --> E1 & E2 & E3 & E4 & E5
-    C3 --> F1 & F2 & F3
-    C4 --> G1 & G2 & G3
-    D1 & D2 & D3 --> H1 & H2 & H3
-
-    style B fill:#4CAF50,color:#fff
-    style D1 fill:#2196F3,color:#fff
-    style F3 fill:#9C27B0,color:#fff
-```
-
-### Repository Structure
+- **`AGENTS.md`** — Always loaded. Compressed security knowledge: vulnerability payloads, CVSS reference, methodology frameworks (PTES, OWASP, MITRE), bug bounty reporting policy.
+- **Skills** (`.claude/skills/`) — User-triggered via `/skill-name`. Handle multi-step orchestration, parallel agent deployment, user approval gates, and reporting workflows.
+- **Agents** (`.claude/agents/`) — Reusable specialized subprocesses spawned by skills for focused tasks.
 
 ```
 julius/
-├── AGENTS.md                  # Passive security knowledge base (always loaded)
-├── CLAUDE.md                  # Repository-wide instructions
+├── AGENTS.md                     # Passive knowledge base (always loaded)
+├── CLAUDE.md                     # Repository instructions
 ├── .claude/
-│   ├── skills/                # 42 security testing skills
-│   │   ├── pentest/           # 46+ attack types, 151 docs, 35+ agents
-│   │   ├── hackerone/         # HackerOne bug bounty automation
-│   │   ├── intigriti/         # Intigriti bug bounty automation
-│   │   ├── defectdojo/        # Vulnerability management (IAP auth, API import)
-│   │   ├── burp-suite/        # Burp Suite Professional MCP integration
-│   │   ├── hexstrike/         # HexStrike AI — 150+ security tools
-│   │   ├── cloud-security/    # AWS, Azure, GCP testing
-│   │   ├── container-security/# Docker, Kubernetes testing
-│   │   ├── mobile-security/   # MobSF + Frida instrumentation
-│   │   ├── ai-threat-testing/ # OWASP LLM Top 10 testing
-│   │   ├── authenticating/    # Auth testing, 2FA bypass, bot evasion
-│   │   ├── domain-assessment/ # Subdomain discovery, port scanning
+│   ├── skills/                   # 47 skills
+│   │   ├── pentest/              # Core: 11 attack categories, 186 docs
+│   │   │   └── attacks/
+│   │   │       ├── injection/        # SQLi, NoSQLi, command, SSTI, XXE
+│   │   │       ├── client-side/      # XSS, CSRF, clickjacking, CORS, prototype pollution
+│   │   │       ├── server-side/      # SSRF, smuggling, file upload, path traversal, race conditions...
+│   │   │       ├── authentication/   # JWT, OAuth, bypass, password attacks
+│   │   │       ├── api-security/     # GraphQL, REST, WebSockets, Web LLM
+│   │   │       ├── web-applications/ # Access control, business logic, cache, info disclosure
+│   │   │       ├── ip-infrastructure/# DNS, port scanning, MITM, SMB
+│   │   │       ├── cloud-containers/ # AWS, Azure, GCP, Docker, K8s
+│   │   │       ├── system/           # AD, privesc, exploit dev
+│   │   │       ├── physical-social/  # Social engineering
+│   │   │       └── essential-skills/ # PTES, OWASP WSTG, MITRE ATT&CK, reporting
+│   │   ├── hackerone/            # HackerOne bug bounty automation
+│   │   ├── intigriti/            # Intigriti bug bounty (API integration, tier prioritization)
+│   │   ├── defectdojo/           # Vulnerability management (IAP auth, API import)
+│   │   ├── bounty-recon/         # Shared recon pipeline for bug bounty
+│   │   ├── bounty-validation/    # Shared validation + anti-hallucination checks
+│   │   ├── source-code-scanning/ # SAST + dependency CVE scanning
+│   │   ├── authenticating/       # Auth testing, 2FA bypass, CAPTCHA, bot evasion
+│   │   ├── cloud-security/       # AWS, Azure, GCP (IAM, storage, serverless)
+│   │   ├── container-security/   # Docker + Kubernetes
+│   │   ├── mobile-security/      # MobSF + Frida
+│   │   ├── mobile-app-acquisition/ # APK/IPA download from emulators
+│   │   ├── ai-threat-testing/    # OWASP LLM Top 10
+│   │   ├── burp-suite/           # Burp Suite MCP integration
+│   │   ├── hexstrike/            # HexStrike AI (150+ tools)
+│   │   ├── cve-poc-generator/    # CVE research + PoC generation
+│   │   ├── cve-testing/          # Known CVE testing
+│   │   ├── domain-assessment/    # Subdomain discovery + port scanning
 │   │   ├── web-application-mapping/ # Endpoint discovery, tech detection
-│   │   ├── cve-testing/       # CVE vulnerability testing
-│   │   ├── common-appsec-patterns/  # OWASP Top 10 testing
-│   │   └── ... (27 more recon/utility skills)
+│   │   ├── common-appsec-patterns/  # OWASP Top 10 quick testing
+│   │   ├── skiller/              # Skill creation and management
+│   │   └── ... (19 recon/utility skills)
 │   │
-│   ├── agents/                # Orchestration agents
-│   │   └── skiller.md         # Skill creation/management
+│   ├── agents/                   # 6 reusable agents
+│   │   ├── dom-xss-scanner.md    # Automated DOM XSS via Playwright
+│   │   ├── pentester-validator.md # Anti-hallucination finding validation
+│   │   ├── script-generator.md   # Optimized PoC script generation
+│   │   ├── patt-fetcher.md       # PayloadsAllTheThings fetcher
+│   │   ├── hackthebox.md         # HackTheBox challenge orchestrator
+│   │   └── skiller.md            # Skill creation automation
 │   │
-│   └── OUTPUT_STANDARDS.md    # Standardized output formats
+│   └── OUTPUT_STANDARDS.md       # Standardized output formats
 │
-├── outputs/                   # Generated findings and reports (gitignored)
-├── templates/                 # Skill templates and GitHub templates
-├── CONTRIBUTING.md            # Contribution guidelines
-└── README.md                  # This file
+├── tools/                        # External tool installers + scripts
+│   ├── playwright/               # Browser automation setup
+│   ├── kali/                     # nmap, ffuf, sqlmap, nikto, etc.
+│   └── recox_endpoint_recon.py   # Wayback/CommonCrawl endpoint discovery
+│
+├── outputs/                      # Engagement outputs (gitignored)
+├── templates/                    # Skill templates
+└── CONTRIBUTING.md
 ```
 
 ---
 
-## Available Skills
+## Core Skills
 
-### Offensive Testing (5 skills)
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **Pentest** | `/pentest` | 7-phase pentest with 35+ parallel agents. SQL, XSS, SSRF, JWT, OAuth, SSTI, XXE, and more |
-| **Common AppSec** | `/common-appsec-patterns` | OWASP Top 10 quick-hit testing |
-| **CVE Testing** | `/cve-testing` | Known vulnerability testing with public exploits |
-| **AI Threat Testing** | `/ai-threat-testing` | OWASP LLM Top 10 — prompt injection, model extraction, supply chain |
-| **Authenticating** | `/authenticating` | Auth bypass, 2FA, CAPTCHA solving, bot evasion |
-
-### Reconnaissance (19 skills)
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **Domain Assessment** | `/domain-assessment` | Subdomain discovery + port scanning coordinator |
-| **Web App Mapping** | `/web-application-mapping` | Endpoint discovery, tech detection, headless browsing |
-| **Subdomain Enumeration** | `/subdomain_enumeration` | CT logs, passive DNS, search engine dorks |
-| **DNS Intelligence** | `/dns_intelligence` | MX, TXT, NS, CNAME, SRV tech signals |
-| **Certificate Transparency** | `/certificate_transparency` | CT log queries, SAN extraction |
-| **HTTP Fingerprinting** | `/http_fingerprinting` | Headers, cookies, error page analysis |
-| **TLS Certificate Analysis** | `/tls_certificate_analysis` | Issuer, SAN, JARM fingerprints |
-| **Security Posture** | `/security_posture_analyzer` | Headers, CSP, HSTS, WAF, security.txt |
-| **CDN/WAF Fingerprinter** | `/cdn_waf_fingerprinter` | Cloudflare, Akamai, Fastly detection |
-| **Frontend Inferencer** | `/frontend_inferencer` | React, Angular, Vue, jQuery, Bootstrap |
-| **Backend Inferencer** | `/backend_inferencer` | Servers, languages, frameworks, databases, CMS |
-| **Cloud Infra Detector** | `/cloud_infra_detector` | AWS, Azure, GCP, PaaS detection |
-| **DevOps Detector** | `/devops_detector` | CI/CD, containerization, orchestration |
-| **Third Party Detector** | `/third_party_detector` | Payments, analytics, auth, CRM, support |
-| **IP Attribution** | `/ip_attribution` | WHOIS, ASN, cloud provider mapping |
-| **Domain Discovery** | `/domain_discovery` | Official domain via web search, WHOIS, TLD patterns |
-| **Code Repository Intel** | `/code_repository_intel` | GitHub/GitLab public repos, deps, CI configs |
-| **Job Posting Analysis** | `/job_posting_analysis` | Tech requirements from career pages |
-| **Web Archive Analysis** | `/web_archive_analysis` | Wayback Machine technology migrations |
-
-### Bug Bounty Platforms (3 skills)
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **HackerOne** | `/hackerone` | Scope parsing, parallel testing, platform-ready submissions |
-| **Intigriti** | `/intigriti` | API scope fetch, tier prioritization, EU-formatted reports |
-| **DefectDojo** | `/defectdojo` | Vulnerability management — IAP auth, finding import, evidence upload |
-
-### Cloud, Container & Mobile Security (3 skills)
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **Cloud Security** | `/cloud-security` | AWS, Azure, GCP — IAM, storage, serverless, CIS Benchmarks |
-| **Container Security** | `/container-security` | Docker image scanning, K8s RBAC, pod security, escape testing |
-| **Mobile Security** | `/mobile-security` | MobSF static analysis + Frida dynamic instrumentation |
-
-### Professional Tooling (2 skills)
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **Burp Suite** | `/burp-suite` | PortSwigger MCP — active scanning, Collaborator, traffic replay |
-| **HexStrike AI** | `/hexstrike` | 150+ security tools via MCP — network, web, binary, cloud |
-
-### Reporting & Utilities (10 skills)
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **Evidence Formatter** | `/evidence_formatter` | Screenshot, video, HTTP log formatting |
-| **JSON Report Generator** | `/json_report_generator` | Machine-readable findings output |
-| **Report Exporter** | `/report_exporter` | Multi-format report export |
-| **Signal Correlator** | `/signal_correlator` | Cross-skill signal correlation |
-| **Confidence Scorer** | `/confidence_scorer` | Finding confidence scoring |
-| **Conflict Resolver** | `/conflict_resolver` | Conflicting signal resolution |
-| **HTML Content Analysis** | `/html_content_analysis` | Meta tags, generator comments, script URLs |
-| **JavaScript DOM Analysis** | `/javascript_dom_analysis` | Global variables, DOM attributes, bundle patterns |
-| **API Portal Discovery** | `/api_portal_discovery` | Developer docs, OpenAPI/Swagger endpoints |
-| **Skiller** | `/skiller` | Skill creation, validation, and management |
-
----
-
-## Use Cases
-
-### 1. Penetration Testing
+### Penetration Testing
 
 ```bash
 /pentest
-
-# Deploys 35+ specialized agents in parallel:
-# - Injection (SQL, NoSQL, Command, SSTI, XXE)
-# - Client-side (XSS, CSRF, Clickjacking, CORS, Prototype Pollution)
-# - Server-side (SSRF, HTTP Smuggling, File Upload, Path Traversal)
-# - Authentication (JWT, OAuth, Auth Bypass, Password Attacks)
-# - API (GraphQL, REST, WebSockets, Web LLM)
-# - Business Logic (Race Conditions, Access Control, Cache Poisoning)
 ```
 
-### 2. Bug Bounty Hunting
+The main skill. Runs a 6-phase pentest:
+
+1. **Initialization** — Scope, engagement folder
+2. **Reconnaissance** — Subdomain enum, port scanning, tech detection
+3. **Planning** — Test plan → user approval gate
+4. **Testing** — Parallel agents across 11 attack categories (40+ attack types)
+5. **Aggregation** — Dedup, chain discovery, severity calculation
+6. **Reporting** — Findings with CVSS, CWE, evidence, remediation
+
+**Attack categories:**
+
+| Category | Types |
+|----------|-------|
+| Injection | SQL, NoSQL, command, SSTI, XXE |
+| Client-side | XSS (reflected/stored/DOM), CSRF, clickjacking, CORS, prototype pollution |
+| Server-side | SSRF, HTTP smuggling, file upload, path traversal, deserialization, race conditions, cache poisoning, access control, business logic, host header, info disclosure, web cache deception |
+| Authentication | JWT, OAuth, auth bypass, password attacks, default credentials |
+| API | GraphQL, REST, WebSockets, Web LLM |
+| Cloud/Containers | AWS, Azure, GCP, Docker, Kubernetes |
+| Infrastructure | DNS, port scanning, MITM, SMB/NetBIOS |
+
+### Bug Bounty
 
 ```bash
-/hackerone     # HackerOne programs
-/intigriti     # Intigriti programs
-
-# Workflow: scope parsing → parallel testing → PoC validation → platform-ready reports
+/hackerone    # HackerOne programs — scope CSV parsing, parallel testing, platform-ready reports
+/intigriti    # Intigriti programs — API scope fetch, tier prioritization, EU-formatted reports
 ```
 
-### 3. Vulnerability Management
+Both share:
+- `/bounty-recon` — Recon pipeline: httpx, naabu, ffuf, nuclei, endpoint recon, parallel skill deployment
+- `/bounty-validation` — 5-point anti-hallucination validation, OOS checks, business logic verification, AI compliance disclosure
+
+**Active programs** (from `outputs/`): Tomorrowland, NVIDIA, Yahoo, Capital.com, Miro, Bitvavo, DataCamp, Revolut, Rivian, Grafana, Generali, Hitta, DigitalOcean, Rosenberger, ST, BMW, CaixaBank, AS Watson, Madrid...
+
+### Vulnerability Management
 
 ```bash
 /defectdojo <product> [engagement]
-
-# Authenticates via API (supports Google Cloud IAP)
-# Creates products/engagements/tests with user approval
-# Imports findings with CWE mapping and evidence
-# Deduplicates against existing findings
 ```
 
-### 4. Cloud & Infrastructure Security
+- Phase 1: Write findings locally as `report.md` with YAML frontmatter → user reviews
+- Phase 2: Upload to DefectDojo REST API v2 (after explicit approval)
+- Google Cloud IAP authentication via Playwright
+- CWE mapping, evidence upload, deduplication
+- Findings created as `active=false, verified=false` — user must review in DefectDojo
+
+### Source Code Review
 
 ```bash
-/cloud-security    # AWS, Azure, GCP misconfigurations
-/container-security # Docker and Kubernetes testing
-/mobile-security   # iOS and Android app testing
+/source-code-scanning
 ```
 
-### 5. AI/LLM Security Testing
+SAST scanning: OWASP Top 10, CWE Top 25, hardcoded secrets, dependency CVEs, insecure patterns. Produces DefectDojo-compatible findings with `file_path`, `line`, `sast_source_*` fields.
 
-```bash
-/ai-threat-testing
+### Specialized Testing
 
-# Tests for OWASP LLM Top 10:
-# - Prompt injection, insecure output handling
-# - Training data poisoning, model extraction
-# - Supply chain attacks, excessive agency
-```
+| Skill | Command | What it does |
+|-------|---------|-------------|
+| Cloud Security | `/cloud-security` | AWS/Azure/GCP — IAM, storage, serverless, CIS Benchmarks |
+| Container Security | `/container-security` | Docker image scanning, K8s RBAC, pod security, escape testing |
+| Mobile Security | `/mobile-security` | MobSF static + Frida dynamic (OWASP Mobile Top 10) |
+| AI/LLM Threats | `/ai-threat-testing` | OWASP LLM Top 10 — prompt injection, model extraction, data poisoning |
+| Auth Testing | `/authenticating` | Signup/login automation, 2FA bypass, CAPTCHA solving, bot evasion |
+| CVE Testing | `/cve-testing` | Known CVE testing with public exploits |
+| CVE PoC Generator | `/cve-poc-generator` | Research CVE → generate Python PoC + report |
 
-### 6. Full Reconnaissance Pipeline
+### Reconnaissance (19 skills)
 
-```bash
-/domain-assessment          # Subdomain discovery + port scanning
-/web-application-mapping    # Endpoint and tech detection
-/common-appsec-patterns     # OWASP Top 10 quick testing
-/pentest                    # Full security assessment
-/defectdojo                 # Import findings to DefectDojo
-```
+Lightweight coordinator skills that run recon tools or orchestrate other skills:
+
+`/domain-assessment` `/web-application-mapping` `/subdomain_enumeration` `/dns_intelligence` `/certificate_transparency` `/http_fingerprinting` `/tls_certificate_analysis` `/security_posture_analyzer` `/cdn_waf_fingerprinter` `/frontend_inferencer` `/backend_inferencer` `/cloud_infra_detector` `/devops_detector` `/third_party_detector` `/ip_attribution` `/domain_discovery` `/code_repository_intel` `/job_posting_analysis` `/web_archive_analysis`
+
+---
+
+## Agents
+
+Agents are specialized subprocesses spawned by skills:
+
+| Agent | Purpose |
+|-------|---------|
+| **dom-xss-scanner** | Injects canary tokens through DOM sources, hooks sinks, detects taint flow, escalates with context-aware payloads |
+| **pentester-validator** | Anti-hallucination: CVSS consistency, evidence existence, PoC syntax, claims-vs-evidence corroboration |
+| **script-generator** | Generates parallelized, syntax-validated PoC scripts (>30 lines) |
+| **patt-fetcher** | Fetches PayloadsAllTheThings payloads on demand (30+ categories) |
+| **hackthebox** | Orchestrates HackTheBox challenges — VPN, login, solving, writeup |
+| **skiller** | Automated skill directory creation and validation |
+
+---
+
+## Tool Integrations
+
+| Tool | Integration | Used for |
+|------|-------------|----------|
+| **Burp Suite** | MCP (PortSwigger) | Active scanning, Collaborator OOB, traffic replay, sitemap |
+| **HexStrike AI** | MCP server | 150+ tools: network, web, binary, cloud, auth |
+| **Playwright** | MCP | DOM XSS, auth testing, screenshot evidence, client-side validation |
+| **Kali tools** | CLI | nmap, ffuf, sqlmap, nikto, gobuster, testssl, dig |
+| **recox_endpoint_recon.py** | Script | Wayback Machine, Common Crawl, OTX, URLScan endpoint discovery |
 
 ---
 
 ## Quick Start
 
-### Prerequisites
-
-- **Claude Code** - AI-powered IDE by Anthropic ([Install Claude Code](https://claude.ai/download))
-- **Git** - For cloning the repository
-- **Written Authorization** - Always get permission before testing any systems
-
-### Installation
-
 ```bash
-# Clone the repository
+# Clone
 git clone https://github.com/CroquetteHunters/julius.git
 cd julius
 
 # Open in Claude Code
 claude .
-```
 
-Skills in `.claude/skills/` auto-load. No additional configuration needed.
-
-### Usage
-
-```bash
-# Penetration testing
+# Run a pentest
 /pentest
 
-# Bug bounty
-/hackerone
+# Run a bug bounty program
 /intigriti
 
-# Reconnaissance
-/domain-assessment
-/web-application-mapping
-
-# Vulnerability management
-/defectdojo
-
-# Cloud security
-/cloud-security
-/container-security
-
-# Skill development
+# Create a new skill
 /skiller
 ```
 
-### Output Structure
+Skills auto-load from `.claude/skills/`. No additional configuration needed.
 
-All skills produce standardized outputs:
+### Optional tool setup
 
-```
-outputs/<engagement>/
-├── findings/           # JSON + markdown vulnerability reports
-│   ├── finding-001/
-│   │   ├── description.md    # Title, severity, CVSS, CWE, steps, remediation
-│   │   └── evidence/         # Screenshots, PoC scripts, HTTP logs
-│   └── finding-002/
-├── reports/            # Executive + technical reports
-└── activity/           # NDJSON activity logs
+```bash
+# Kali tools (nmap, ffuf, sqlmap, nikto...)
+bash tools/kali/install.sh
+
+# Playwright (browser automation)
+bash tools/playwright/install.sh
 ```
 
 ---
 
-## How It Works
+## Output Structure
 
-### Skill → Agent → Tool Execution Model
+All engagements produce outputs in `outputs/<engagement>/` (gitignored):
 
-```mermaid
-flowchart TB
-    subgraph "1. User Invokes Skill"
-        A["/pentest /hackerone /defectdojo"]
-    end
-
-    subgraph "2. Skill Loads Context"
-        B1[SKILL.md — methodology + workflow]
-        B2[AGENTS.md — vulnerability knowledge base]
-        B3[reference/ — CWE mappings, API docs]
-    end
-
-    subgraph "3. Deploy Agents in Parallel"
-        D1[SQL Injection Agent]
-        D2[XSS Agent]
-        D3[SSRF Agent]
-        D4[JWT Agent]
-        D5[35+ More Agents]
-    end
-
-    subgraph "4. Execute with Tools"
-        E1[Playwright — Browser automation]
-        E2[Burp Suite — Active scanning]
-        E3[HexStrike — 150+ tools]
-        E4[curl/httpx — HTTP testing]
-    end
-
-    subgraph "5. Standardized Outputs"
-        F1[findings/ — CVSS, CWE, evidence]
-        F2[reports/ — Executive + technical]
-        F3[DefectDojo — API import]
-    end
-
-    A --> B1 & B2 & B3
-    B1 & B2 & B3 --> D1 & D2 & D3 & D4 & D5
-    D1 & D2 & D3 & D4 & D5 --> E1 & E2 & E3 & E4
-    E1 & E2 & E3 & E4 --> F1 & F2 & F3
-
-    style A fill:#4CAF50,color:#fff
-    style D1 fill:#2196F3,color:#fff
-    style F3 fill:#9C27B0,color:#fff
+```
+outputs/{engagement}/
+├── report/                    # Final deliverables
+│   ├── Penetration-Test-Report.docx
+│   ├── pentest-report.json
+│   └── appendix/
+└── processed/                 # Working files
+    ├── reconnaissance/        # Recon results
+    ├── findings/              # Individual findings
+    │   └── finding-001/
+    │       ├── report.md      # YAML frontmatter + markdown
+    │       ├── poc.py         # Proof of concept
+    │       ├── poc_output.txt # PoC execution output
+    │       └── evidence/      # Screenshots, HTTP logs
+    └── activity/              # NDJSON logs
 ```
 
-### Key Features
+---
 
-| Feature | Details |
-|---------|---------|
-| **OWASP Top 10** | 100% coverage |
-| **SANS Top 25 CWE** | 90%+ coverage |
-| **CVSS 3.1 Scoring** | All vulnerability findings |
-| **MITRE ATT&CK** | TTPs mapped for all findings |
-| **Evidence Capture** | Screenshots, videos, HTTP logs |
-| **Deduplication** | Against existing findings in DefectDojo |
-| **User Approval Gates** | All write operations require explicit confirmation |
+## Bug Bounty Reporting Rules
+
+Enforced across all bug bounty skills:
+
+- **No PoC = No Report** — Every finding needs a working exploit demo
+- **CVSS must be calculated** — Never guessed. Use Python/bash calculator
+- **AI disclosure mandatory** — All reports include AI usage transparency
+- **Validation gate** — pentester-validator agent checks: CVSS consistency, evidence existence, PoC syntax, claims corroboration
+- **Business logic verification** — Verify findings are not "by design" before reporting
+- **Out of scope** — CORS, missing headers, self-XSS, version disclosure, rate limiting (unless ATO), username enumeration
 
 ---
 
 ## Contributing
 
-We welcome contributions from the security community!
-
-### Automated Workflow (Recommended)
-
 ```bash
+# Automated (recommended)
 /skiller
 
-# Interactive prompts:
-# 1. Create GitHub issue
-# 2. Create feature branch
-# 3. Generate skill structure and documentation
-# 4. Validate against best practices
-# 5. Commit and create PR
-```
-
-### Manual Workflow
-
-```bash
-# 1. Create issue
+# Manual
 gh issue create --title "Add skill: X" --body "Description..."
-
-# 2. Create branch
 git checkout -b feature/skill-name
-
-# 3. Develop skill following .claude/skills/ structure
-# 4. Test by invoking in Claude Code
-# 5. Commit with conventional format: feat(scope): description
-# 6. Create PR linking to issue
+# Develop, test, commit with conventional format
+# feat(scope): description | fix(scope): description
+git push && gh pr create
 ```
 
-**Git conventions:** `feat|fix|docs|refactor(scope): description` — see [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## Security & Legal
-
-**These tools are designed for authorized security testing ONLY.**
-
-**Authorized & Legal Use:**
-- Penetration testing with written authorization
-- Bug bounty programs within scope
-- Security research on your own systems
-- CTF competitions and training environments
-- Educational purposes with proper permissions
-
-**Prohibited & Illegal Use:**
-- Unauthorized testing of any systems
-- Malicious exploitation of vulnerabilities
-- Data theft or system disruption
-- Testing without explicit written permission
-- Any use that violates local or international laws
-
-**Users are solely responsible for compliance with all applicable laws and regulations.**
-
-### Responsible Disclosure
-
-If you discover a vulnerability using these tools:
-
-1. **Do not exploit** beyond proof-of-concept
-2. **Report immediately** to the vendor/organization
-3. **Follow responsible disclosure** timelines (typically 90 days)
-4. **Document thoroughly** for remediation
-
----
-
-## Roadmap
-
-### Delivered
-
-- **42 Security Skills** covering offensive testing, recon, bug bounty, cloud/container/mobile, and reporting
-- **Burp Suite MCP Integration** for professional web app testing
-- **HexStrike AI Integration** with 150+ security tools
-- **DefectDojo Integration** with IAP authentication and API-based finding import
-- **Intigriti Platform Support** alongside HackerOne
-- **AI/LLM Threat Testing** for OWASP LLM Top 10
-- **Cloud Security** for AWS, Azure, GCP
-- **Container Security** for Docker and Kubernetes
-- **Mobile Security** with MobSF and Frida
-
-### Planned
-
-- Compliance reporting (PCI-DSS, SOC 2, ISO 27001)
-- Blockchain/smart contract auditing
-- IoT and firmware testing
-- Additional bug bounty platform integrations
-
-**Contributions welcome** — [Feature Requests](https://github.com/CroquetteHunters/julius/discussions/categories/feature-requests)
-
----
-
-## Project Stats
-
-| Category | Count |
-|----------|-------|
-| **Security Skills** | 42 |
-| **Specialized Agents** | 35+ |
-| **Attack Documentation** | 151 files |
-| **Bug Bounty Platforms** | 3 (HackerOne, Intigriti, DefectDojo) |
-| **Cloud Providers** | 3 (AWS, Azure, GCP) |
-| **HexStrike Tools** | 150+ |
-| **Output Standards** | 3 formats (recon, vuln, bounty) |
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ---
 
 ## Upstream
 
-Julius is a fork of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools). Upstream changes are synced periodically.
-
----
-
-## Community & Support
-
-- [GitHub Issues](https://github.com/CroquetteHunters/julius/issues) - Bug reports and features
-- [Upstream Repo](https://github.com/transilienceai/communitytools) - Original project by Transilience AI
+Fork of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools). Upstream changes synced periodically.
 
 ---
 
 ## License
 
-MIT License - See [LICENSE](LICENSE).
+MIT — See [LICENSE](LICENSE).
 
 ---
 
@@ -566,7 +316,5 @@ MIT License - See [LICENSE](LICENSE).
 **Built on [Transilience AI Community Tools](https://github.com/transilienceai/communitytools)**
 
 [Report Issue](https://github.com/CroquetteHunters/julius/issues) | [Upstream](https://github.com/transilienceai/communitytools)
-
-`claude-code` `ai-security` `penetration-testing` `bug-bounty` `owasp` `hackerone` `intigriti` `defectdojo` `burp-suite` `cloud-security` `container-security` `mobile-security` `ai-threat-testing` `playwright` `security-automation`
 
 </div>
