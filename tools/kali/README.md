@@ -414,4 +414,4 @@ sqlmap --update
 - [OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)
 - Pentest-executor agent: `.claude/agents/pentester-executor.md`
 - SQL Injection guide: `.claude/skills/pentest/attacks/injection/sql-injection/`
-- Network attacks guide: `.claude/skills/pentest/attacks/network/`
+- Network attacks guide: `.claude/skills/pentest/attacks/ip-infrastructure/`

@@ -45,7 +45,7 @@ mkdir -p outputs/YYYYMMDD_<name>/{recon,findings,evidence,logs,artifacts/{certs,
 
 1. Navigate to `https://app.hackthebox.com/login`, fill HTB credentials, handle 2FA
 2. Screenshot dashboard as evidence
-3. Reference: `.claude/skills/hackthebox/reference/platform-navigation.md`
+3. Reference: HackTheBox platform navigation patterns
 
 ## Phase 2: Challenge Selection
 

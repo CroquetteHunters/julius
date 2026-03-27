@@ -12,7 +12,7 @@
 **Command** | `; ls` | `| whoami` | `.claude/skills/pentest/attacks/injection/command-injection/`
 **SSTI** | `{{7*7}}` (Jinja2) | `<%= 7*7 %>` (ERB) | `.claude/skills/pentest/attacks/injection/ssti/`
 **XXE** | `<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>` | `.claude/skills/pentest/attacks/injection/xxe/`
-**LDAP/XPath** | `*)(uid=*))(|(uid=*` | `.claude/skills/pentest/attacks/injection/ldap-xpath-injection/`
+**LDAP/XPath** | `*)(uid=*))(|(uid=*` | LDAP injection via crafted filters
 
 ### Client-Side
 **XSS** | `<script>alert(1)</script>` | `<img src=x onerror=alert(1)>` | `.claude/skills/pentest/attacks/client-side/xss/`
@@ -86,10 +86,10 @@ A01: Broken Access Control | A02: Cryptographic Failures | A03: Injection | A04:
 
 ## Common Tools
 - **Playwright**: Browser automation, payload injection, evidence capture [`.claude/skills/pentest/attacks/essential-skills/playwright-automation.md`]
-- **Burp Suite MCP**: Active scanning, Collaborator OOB, traffic replay via PortSwigger MCP [`.claude/skills/burp-suite/`]
-- **MobSF MCP**: Mobile static analysis (APK/IPA) via MobSF API [`.claude/skills/mobile-security/`]
-- **Frida MCP**: Dynamic instrumentation, hooking, runtime analysis [`.claude/skills/mobile-security/`]
-- **HexStrike AI MCP**: 150+ security tools via MCP (nmap, nuclei, sqlmap, gobuster, ghidra, prowler, etc.) + 12 AI agents for intelligent orchestration [`projects/pentest/.claude/skills/hexstrike/`]
+- **Burp Suite MCP**: Active scanning, Collaborator OOB, traffic replay via PortSwigger MCP [`.claude/skills/tools/burp-suite/`]
+- **MobSF MCP**: Mobile static analysis (APK/IPA) via MobSF API [`.claude/skills/infrastructure/mobile-security/`]
+- **Frida MCP**: Dynamic instrumentation, hooking, runtime analysis [`.claude/skills/infrastructure/mobile-security/`]
+- **HexStrike AI MCP**: 150+ security tools via MCP (nmap, nuclei, sqlmap, gobuster, ghidra, prowler, etc.) + 12 AI agents for intelligent orchestration [`.claude/skills/tools/hexstrike/`]
 - **sqlmap**: `sqlmap -u "URL" -p param --dbs` | HexStrike: `sqlmap_scan(url, params)`
 - **nuclei**: `nuclei -u target -t cves/` | HexStrike: `nuclei_scan(target, templates)`
 - **ffuf**: `ffuf -u https://target/FUZZ -w wordlist.txt` | HexStrike: `ffuf_scan(url, wordlist)`

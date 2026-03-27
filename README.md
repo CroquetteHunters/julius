@@ -41,62 +41,64 @@ Following [Vercel's research](https://vercel.com/blog/agents-md-outperforms-skil
 
 ```
 julius/
-├── AGENTS.md                     # Passive knowledge base (always loaded)
-├── CLAUDE.md                     # Repository instructions
+├── AGENTS.md                        # Passive knowledge base (always loaded)
+├── CLAUDE.md                        # Repository instructions
 ├── .claude/
-│   ├── skills/                   # 47 skills
-│   │   ├── pentest/              # Core: 11 attack categories, 186 docs
-│   │   │   └── attacks/
-│   │   │       ├── injection/        # SQLi, NoSQLi, command, SSTI, XXE
-│   │   │       ├── client-side/      # XSS, CSRF, clickjacking, CORS, prototype pollution
-│   │   │       ├── server-side/      # SSRF, smuggling, file upload, path traversal, race conditions...
-│   │   │       ├── authentication/   # JWT, OAuth, bypass, password attacks
-│   │   │       ├── api-security/     # GraphQL, REST, WebSockets, Web LLM
-│   │   │       ├── web-applications/ # Access control, business logic, cache, info disclosure
-│   │   │       ├── ip-infrastructure/# DNS, port scanning, MITM, SMB
-│   │   │       ├── cloud-containers/ # AWS, Azure, GCP, Docker, K8s
-│   │   │       ├── system/           # AD, privesc, exploit dev
-│   │   │       ├── physical-social/  # Social engineering
-│   │   │       └── essential-skills/ # PTES, OWASP WSTG, MITRE ATT&CK, reporting
-│   │   ├── hackerone/            # HackerOne bug bounty automation
-│   │   ├── intigriti/            # Intigriti bug bounty (API integration, tier prioritization)
-│   │   ├── defectdojo/           # Vulnerability management (IAP auth, API import)
-│   │   ├── bounty-recon/         # Shared recon pipeline for bug bounty
-│   │   ├── bounty-validation/    # Shared validation + anti-hallucination checks
-│   │   ├── source-code-scanning/ # SAST + dependency CVE scanning
-│   │   ├── authenticating/       # Auth testing, 2FA bypass, CAPTCHA, bot evasion
-│   │   ├── cloud-security/       # AWS, Azure, GCP (IAM, storage, serverless)
-│   │   ├── container-security/   # Docker + Kubernetes
-│   │   ├── mobile-security/      # MobSF + Frida
-│   │   ├── mobile-app-acquisition/ # APK/IPA download from emulators
-│   │   ├── ai-threat-testing/    # OWASP LLM Top 10
-│   │   ├── burp-suite/           # Burp Suite MCP integration
-│   │   ├── hexstrike/            # HexStrike AI (150+ tools)
-│   │   ├── cve-poc-generator/    # CVE research + PoC generation
-│   │   ├── cve-testing/          # Known CVE testing
-│   │   ├── domain-assessment/    # Subdomain discovery + port scanning
-│   │   ├── web-application-mapping/ # Endpoint discovery, tech detection
-│   │   ├── common-appsec-patterns/  # OWASP Top 10 quick testing
-│   │   ├── skiller/              # Skill creation and management
-│   │   └── ... (19 recon/utility skills)
+│   ├── skills/
+│   │   ├── pentest/                 # Core pentesting — 11 attack categories, 186 docs
+│   │   ├── offensive/               # Targeted testing skills
+│   │   │   ├── ai-threat-testing/       # OWASP LLM Top 10
+│   │   │   ├── authenticating/          # Auth, 2FA, CAPTCHA, bot evasion
+│   │   │   ├── common-appsec-patterns/  # OWASP Top 10 quick testing
+│   │   │   ├── cve-testing/             # Known CVE testing
+│   │   │   ├── cve-poc-generator/       # CVE research + PoC generation
+│   │   │   └── source-code-scanning/    # SAST + dependency CVE scanning
+│   │   ├── recon/                   # Reconnaissance (10 skills)
+│   │   │   ├── domain-assessment/       # Subdomain discovery + port scanning
+│   │   │   ├── web-application-mapping/ # Endpoint discovery, tech detection
+│   │   │   ├── subdomain-enumeration/   # CT logs, passive DNS, dorks
+│   │   │   ├── dns-intelligence/        # MX, TXT, NS, CNAME, SRV analysis
+│   │   │   └── ...                      # + 6 more recon skills
+│   │   ├── detection/               # Technology detection (15 skills)
+│   │   │   ├── frontend-inferencer/     # React, Angular, Vue detection
+│   │   │   ├── backend-inferencer/      # Server/framework/CMS detection
+│   │   │   ├── cdn-waf-fingerprinter/   # Cloudflare, Akamai, WAFs
+│   │   │   └── ...                      # + 12 more detection skills
+│   │   ├── bounty/                  # Bug bounty workflows
+│   │   │   ├── hackerone/               # HackerOne automation
+│   │   │   ├── intigriti/               # Intigriti automation (API, tiers)
+│   │   │   ├── bounty-recon/            # Shared recon pipeline
+│   │   │   ├── bounty-validation/       # Shared validation + anti-hallucination
+│   │   │   └── mobile-app-acquisition/  # APK/IPA download from emulators
+│   │   ├── infrastructure/          # Cloud, container, mobile security
+│   │   │   ├── cloud-security/          # AWS, Azure, GCP
+│   │   │   ├── container-security/      # Docker, Kubernetes
+│   │   │   └── mobile-security/         # MobSF + Frida
+│   │   ├── tools/                   # Tool integrations
+│   │   │   ├── burp-suite/              # Burp Suite MCP
+│   │   │   ├── hexstrike/               # HexStrike AI (150+ tools)
+│   │   │   └── defectdojo/             # DefectDojo vuln management
+│   │   ├── reporting/               # Output and reporting
+│   │   │   ├── evidence-formatter/
+│   │   │   ├── json-report-generator/
+│   │   │   └── report-exporter/
+│   │   └── skiller/                 # Skill creation and management
 │   │
-│   ├── agents/                   # 6 reusable agents
-│   │   ├── dom-xss-scanner.md    # Automated DOM XSS via Playwright
-│   │   ├── pentester-validator.md # Anti-hallucination finding validation
-│   │   ├── script-generator.md   # Optimized PoC script generation
-│   │   ├── patt-fetcher.md       # PayloadsAllTheThings fetcher
-│   │   ├── hackthebox.md         # HackTheBox challenge orchestrator
-│   │   └── skiller.md            # Skill creation automation
-│   │
-│   └── OUTPUT_STANDARDS.md       # Standardized output formats
+│   └── agents/                      # 6 reusable agents
+│       ├── dom-xss-scanner.md       # Automated DOM XSS via Playwright
+│       ├── pentester-validator.md   # Anti-hallucination finding validation
+│       ├── script-generator.md      # Optimized PoC script generation
+│       ├── patt-fetcher.md          # PayloadsAllTheThings fetcher
+│       ├── hackthebox.md            # HackTheBox challenge orchestrator
+│       └── skiller.md               # Skill creation automation
 │
-├── tools/                        # External tool installers + scripts
-│   ├── playwright/               # Browser automation setup
-│   ├── kali/                     # nmap, ffuf, sqlmap, nikto, etc.
-│   └── recox_endpoint_recon.py   # Wayback/CommonCrawl endpoint discovery
+├── tools/                           # External tool installers + scripts
+│   ├── playwright/                  # Browser automation setup
+│   ├── kali/                        # nmap, ffuf, sqlmap, nikto, etc.
+│   └── recox/                       # Wayback/CommonCrawl endpoint discovery
 │
-├── outputs/                      # Engagement outputs (gitignored)
-├── templates/                    # Skill templates
+├── outputs/                         # Engagement outputs (gitignored)
+├── templates/                       # Skill templates
 └── CONTRIBUTING.md
 ```
 
