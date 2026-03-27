@@ -1,16 +1,16 @@
-# Transilience AI Community Security Tools
+# Julius - AI Security Testing Toolkit
 
 <div align="center">
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![GitHub issues](https://img.shields.io/github/issues/transilienceai/communitytools)](https://github.com/transilienceai/communitytools/issues)
-[![GitHub stars](https://img.shields.io/github/stars/transilienceai/communitytools)](https://github.com/transilienceai/communitytools/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/CroquetteHunters/julius)](https://github.com/CroquetteHunters/julius/issues)
+[![GitHub stars](https://img.shields.io/github/stars/CroquetteHunters/julius)](https://github.com/CroquetteHunters/julius/stargazers)
 [![Claude AI](https://img.shields.io/badge/Powered%20by-Claude%20AI-blue)](https://claude.ai)
 
 **Open-source Claude Code skills, agents, and slash commands for AI-powered penetration testing, bug bounty hunting, and security research**
 
-[Quick Start](#-quick-start) | [Documentation](#-documentation) | [Contributing](CONTRIBUTING.md) | [Website](https://www.transilience.ai)
+[Quick Start](#-quick-start) | [Documentation](#-documentation) | [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -33,7 +33,7 @@
 
 ## Overview
 
-**Transilience AI Community Tools** is a comprehensive collection of **Claude Code skills, agents, and slash commands** for security testing, penetration testing, and bug bounty hunting. This repository provides AI-powered security workflows that run directly in Claude Code, enabling automated vulnerability testing, reconnaissance, and professional security reporting.
+**Julius** is a comprehensive collection of **Claude Code skills, agents, and slash commands** for security testing, penetration testing, and bug bounty hunting. Built on top of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools), it provides AI-powered security workflows that run directly in Claude Code, enabling automated vulnerability testing, reconnaissance, and professional security reporting.
 
 ### What's Inside?
 
@@ -44,7 +44,7 @@
 - **Professional Tooling** - Burp Suite MCP, HexStrike AI (150+ tools), Playwright automation
 - **Standardized Outputs** - Professional reports with CVSS scoring and evidence
 
-### Why Choose Transilience Community Tools?
+### Why Choose Julius?
 
 - **AI-Powered Automation** - Claude AI orchestrates intelligent security testing workflows
 - **42 Specialized Skills** - From recon to reporting, covering the full pentest lifecycle
@@ -134,7 +134,7 @@ graph TB
 ### Repository Structure
 
 ```
-communitytools/
+julius/
 ├── AGENTS.md                  # Passive security knowledge base (always loaded)
 ├── CLAUDE.md                  # Repository-wide instructions
 ├── .claude/
@@ -324,8 +324,8 @@ communitytools/
 
 ```bash
 # Clone the repository
-git clone https://github.com/transilienceai/communitytools.git
-cd communitytools
+git clone https://github.com/CroquetteHunters/julius.git
+cd julius
 
 # Open in Claude Code
 claude .
@@ -524,7 +524,7 @@ If you discover a vulnerability using these tools:
 - IoT and firmware testing
 - Additional bug bounty platform integrations
 
-**Community contributions welcome** — [Feature Requests](https://github.com/transilienceai/communitytools/discussions/categories/feature-requests)
+**Contributions welcome** — [Feature Requests](https://github.com/CroquetteHunters/julius/discussions/categories/feature-requests)
 
 ---
 
@@ -542,33 +542,30 @@ If you discover a vulnerability using these tools:
 
 ---
 
-## About Transilience AI
+## Upstream
 
-[**Transilience AI**](https://www.transilience.ai) is an AI-powered security company specializing in autonomous security testing, threat intelligence, and security automation.
-
-We believe in giving back to the security community by open-sourcing our tools and frameworks.
+Julius is a fork of [Transilience AI Community Tools](https://github.com/transilienceai/communitytools). Upstream changes are synced periodically.
 
 ---
 
 ## Community & Support
 
-- [GitHub Discussions](https://github.com/transilienceai/communitytools/discussions) - Questions and ideas
-- [GitHub Issues](https://github.com/transilienceai/communitytools/issues) - Bug reports and features
-- [Website](https://www.transilience.ai) - Company information
+- [GitHub Issues](https://github.com/CroquetteHunters/julius/issues) - Bug reports and features
+- [Upstream Repo](https://github.com/transilienceai/communitytools) - Original project by Transilience AI
 
 ---
 
 ## License
 
-MIT License - Copyright (c) 2025 Transilience AI. See [LICENSE](LICENSE).
+MIT License - See [LICENSE](LICENSE).
 
 ---
 
 <div align="center">
 
-**Built with care by [Transilience AI](https://www.transilience.ai)**
+**Built on [Transilience AI Community Tools](https://github.com/transilienceai/communitytools)**
 
-[Website](https://www.transilience.ai) | [Report Issue](https://github.com/transilienceai/communitytools/issues) | [Discussions](https://github.com/transilienceai/communitytools/discussions)
+[Report Issue](https://github.com/CroquetteHunters/julius/issues) | [Upstream](https://github.com/transilienceai/communitytools)
 
 `claude-code` `ai-security` `penetration-testing` `bug-bounty` `owasp` `hackerone` `intigriti` `defectdojo` `burp-suite` `cloud-security` `container-security` `mobile-security` `ai-threat-testing` `playwright` `security-automation`
 
