@@ -15,8 +15,10 @@ Automates HackerOne workflows: scope parsing → mobile app acquisition → reco
 3. For mobile assets: use /mobile-app-acquisition to detect emulators and download apps
 4. Run /bounty-recon for prioritization + recon pipeline (recon only, no agent deployment)
 5. Invoke /pentest in sub-orchestrator mode (testing engine)
-6. Run /bounty-validation for PoC validation + pre-submission gate
-7. Generate HackerOne-formatted reports
+6. MANDATORY: Invoke /bounty-validation skill for PoC validation + pre-submission gate + AI compliance
+   → This is NOT optional. Do NOT declare reports ready without running this skill.
+   → /bounty-validation enforces: anti-hallucination checks, AI disclosure, evidence quality, OOS checks
+7. Generate HackerOne-formatted reports (only after /bounty-validation passes)
 ```
 
 ## Workflows
@@ -89,11 +91,13 @@ Use `tools/csv_parser.py` to parse.
 Required sections (HackerOne standard):
 1. Summary (2-3 sentences)
 2. Severity (CVSS + business impact)
-3. Steps to Reproduce (numbered, clear)
-4. Raw HTTP requests/responses (real curl -v output, not reconstructed)
-5. Visual Evidence (Playwright browser screenshots for browser-renderable vulns, real tool output for server-side — see `/bounty-validation` Visual Evidence Standard)
-6. Impact (realistic attack scenario)
-7. Remediation (actionable fixes)
+3. CWE (e.g., CWE-601, CWE-79 — must appear in report)
+4. Steps to Reproduce (numbered, clear)
+5. Raw HTTP requests/responses (real curl -v output, not reconstructed)
+6. Visual Evidence (Playwright browser screenshots for browser-renderable vulns, real tool output for server-side — see `/bounty-validation` Visual Evidence Standard)
+7. Impact (realistic attack scenario)
+8. Remediation (actionable fixes)
+9. AI Disclosure (MANDATORY — see `/bounty-validation` AI Usage Compliance)
 
 Use `tools/report_validator.py` to validate.
 
@@ -147,12 +151,14 @@ outputs/<program>/
 - Test only `eligible_for_submission=true` assets
 - Follow program-specific guidelines
 - Compute CVSS scores using a calculator (Python/bash), never guess or estimate
+- **Invoke /bounty-validation skill BEFORE declaring any report ready for submission** — ad-hoc validation is NOT a substitute
 
 **NEVER**:
 - Report without validated PoC
 - Test out-of-scope assets
 - Include real user data
 - Cause service disruption
+- Declare reports "ready to submit" without having invoked /bounty-validation first
 
 ## Tools
 

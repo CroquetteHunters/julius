@@ -146,6 +146,7 @@ Both HackerOne and Intigriti permit AI tools but require responsible use. **Ever
 Before submission:
 - [ ] Working PoC with poc_output.txt + visual evidence
 - [ ] Accurate CVSS score with vector string (computed with calculator, not guessed)
+- [ ] **CWE identifier included** (e.g., CWE-601 — must appear in report Type/summary field)
 - [ ] Correct vulnerability type/classification
 - [ ] Step-by-step reproduction + impact + remediation
 - [ ] Sensitive data sanitized

@@ -19,8 +19,10 @@ Automates Intigriti workflows: scope parsing → mobile app acquisition → reco
 4. For mobile assets: use /mobile-app-acquisition to detect emulators and download apps
 5. Run /bounty-recon for prioritization + recon pipeline (recon only, no agent deployment)
 6. Invoke /pentest in sub-orchestrator mode (testing engine)
-7. Run /bounty-validation for PoC validation + pre-submission gate
-8. Generate Intigriti-formatted reports
+7. MANDATORY: Invoke /bounty-validation skill for PoC validation + pre-submission gate + AI compliance
+   → This is NOT optional. Do NOT declare reports ready without running this skill.
+   → /bounty-validation enforces: anti-hallucination checks, AI disclosure, evidence quality, OOS checks
+8. Generate Intigriti-formatted reports (only after /bounty-validation passes)
 ```
 
 ## Scope Input Methods
@@ -150,14 +152,16 @@ context:
 Required fields (Intigriti standard):
 1. **Title** (vulnerability description, no URL, **max 72 characters**)
 2. **Severity** (CVSS v3.1 or v4.0 vector + score)
-3. **Domain** (affected in-scope asset)
-4. **Vulnerability Type** (from Intigriti taxonomy dropdown)
-5. **Description** (Markdown, detailed explanation)
-6. **Steps to Reproduce** (numbered, clear)
-7. **Impact** (realistic attack scenario)
-8. **Raw HTTP requests/responses** (text format, supplementary to visual evidence)
-9. **Visual evidence** (Playwright screenshots for browser-renderable vulns, real curl/tool output for server-side — see `/bounty-validation` Visual Evidence Standard)
-10. **Role used** (e.g., user, admin, guest, unauthenticated)
+3. **CWE** (e.g., CWE-601, CWE-79 — must appear in report Type field)
+4. **Domain** (affected in-scope asset)
+5. **Vulnerability Type** (from Intigriti taxonomy dropdown)
+6. **Description** (Markdown, detailed explanation)
+7. **Steps to Reproduce** (numbered, clear)
+8. **Impact** (realistic attack scenario)
+9. **Raw HTTP requests/responses** (text format, supplementary to visual evidence)
+10. **Visual evidence** (Playwright screenshots for browser-renderable vulns, real curl/tool output for server-side — see `/bounty-validation` Visual Evidence Standard)
+11. **Role used** (e.g., user, admin, guest, unauthenticated)
+12. **AI Disclosure** (MANDATORY — see `/bounty-validation` AI Usage Compliance)
 
 Use `tools/report_validator.py` to validate.
 
@@ -213,11 +217,13 @@ See `reference/PLATFORM_GUIDE.md` for full comparison.
 - Follow program-specific rules
 - Include CVSS vector string
 - Select correct vulnerability type from taxonomy
+- **Invoke /bounty-validation skill BEFORE declaring any report ready for submission** — ad-hoc validation is NOT a substitute
 
 **NEVER**:
 - Report without validated PoC
 - Test out-of-scope assets or cause service disruption
 - Include real user data
+- Declare reports "ready to submit" without having invoked /bounty-validation first
 
 ## Tools
 
