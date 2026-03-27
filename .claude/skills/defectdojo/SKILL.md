@@ -231,12 +231,13 @@ After all reports are written locally, run a **self-review pass** before present
    - [ ] If a mitigation (like F005 HMAC) raises the bar, document it as prerequisite
    - [ ] CVSS Scope (S:C vs S:U) justified — S:C only if confirmed cross-boundary impact
 
-4. EVIDENCE — Complete chain:
+4. EVIDENCE — Complete chain (see `/bounty-validation` Visual Evidence Standard):
    - [ ] Each finding has evidence/ directory with real captured output
-   - [ ] **Visual PoC preferred**: If the vulnerability has a browser-renderable component (XSS, CSRF, open redirect, clickjacking), capture a browser screenshot (Playwright or manual) showing the actual exploit firing (e.g., `alert()` popup, redirect, DOM change). Terminal/curl evidence is supplementary for these — the primary screenshot MUST be visual.
-   - [ ] For server-side-only findings (SSRF, race conditions, blind injection), terminal/Collaborator evidence is acceptable as primary
+   - [ ] **Browser-renderable vulns** (XSS, CSRF, open redirect, clickjacking): Playwright screenshot showing exploit firing is MANDATORY. Terminal-only = rejected.
+   - [ ] **Server-side vulns** (SSRF, race conditions, blind injection): real `curl -v` output or Collaborator interaction proof is MANDATORY. Simulated output = rejected.
    - [ ] HTTP request + response pairs saved as text files
    - [ ] PoC scripts are functional and referenced in Steps to Reproduce
+   - [ ] **Never**: simulated terminals, reconstructed responses, placeholder screenshots, AI-generated mock output
 ```
 
 **If any check fails, fix the report BEFORE presenting to the user.** Do not present reports with known reproducibility issues.
