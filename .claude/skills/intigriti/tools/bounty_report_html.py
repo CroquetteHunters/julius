@@ -97,7 +97,7 @@ def generate_html(fc, report, researcher_name=None, recommendations=None):
   .scenario-table th:nth-child(2), .scenario-table th:nth-child(3) {{ text-align: right; }}
   tr.expandable {{ cursor: pointer; }}
   tr.expandable:hover {{ background: rgba(99,102,241,0.08); }}
-  tr.expandable td:first-child::before {{ content: '\25B6'; display: inline-block; margin-right: 0.3rem; font-size: 0.6rem; transition: transform 0.15s; color: var(--muted); vertical-align: middle; }}
+  tr.expandable td:first-child::before {{ content: '\\25B6'; display: inline-block; margin-right: 0.3rem; font-size: 0.6rem; transition: transform 0.15s; color: var(--muted); vertical-align: middle; }}
   tr.expandable.open td:first-child::before {{ transform: rotate(90deg); }}
   tr.detail-row {{ display: none; }}
   tr.detail-row.open {{ display: table-row; }}
