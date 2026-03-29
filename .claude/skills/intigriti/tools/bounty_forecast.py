@@ -33,7 +33,7 @@ def fetch_ecb_rate(currency, on_date):
     if cache_key in _rate_cache:
         return _rate_cache[cache_key]
     try:
-        url = f"https://api.frankfurter.dev/{on_date}?from={currency}&to=EUR&amount=1"
+        url = f"https://api.frankfurter.app/{on_date}?from={currency}&to=EUR&amount=1"
         req = urllib.request.Request(url)
         req.add_header("User-Agent", "IntiForecaster/1.0")
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -174,39 +174,48 @@ def forecast(report, current_rates, historical_rate=None, ai_evaluations=None):
     total_ev = sum(s["expected_value_eur"] for s in scored)
     total_potential = sum(s["expected_bounty_eur"] for s in scored)
 
-    # Confirmed earnings — use historical exchange rate at payout date
+    # Confirmed earnings — convert each payout individually at its own date's rate
     confirmed_eur = 0
     payout_conversions = []
     for sub in paid:
-        if sub["total_paid"] > 0 and sub["total_paid_currency"]:
-            cur = sub["total_paid_currency"]
+        payouts = sub.get("payouts", [])
+        if not payouts:
+            continue
+        sub_eur = 0
+        sub_details = []
+        for p in payouts:
+            amount = p.get("amount", 0)
+            cur = p.get("currency", sub.get("total_paid_currency", "EUR"))
+            if amount <= 0:
+                continue
             if cur == "EUR":
-                eur_amount = sub["total_paid"]
+                eur_amount = amount
                 rate_used = 1.0
                 rate_date = "N/A"
             else:
-                # Find the payout date from the payout entries
-                payout_date = None
-                for p in sub.get("payouts", []):
-                    if p.get("paid_date"):
-                        payout_date = p["paid_date"]
-                        break
-                if not payout_date:
-                    payout_date = date.today().isoformat()
+                payout_date = p.get("paid_date") or date.today().isoformat()
                 rate_used = fetch_ecb_rate(cur, payout_date)
-                eur_amount = sub["total_paid"] * rate_used
+                eur_amount = amount * rate_used
                 rate_date = payout_date
-
-            confirmed_eur += eur_amount
-            payout_conversions.append({
-                "id": sub.get("id"),
-                "program": sub.get("program"),
-                "original_amount": sub["total_paid"],
-                "original_currency": cur,
+            sub_eur += eur_amount
+            sub_details.append({
+                "amount": amount,
+                "currency": cur,
+                "type": p.get("type", "Bounty"),
                 "eur_amount": round(eur_amount, 2),
                 "exchange_rate": round(rate_used, 4),
                 "rate_date": rate_date,
             })
+        confirmed_eur += sub_eur
+        payout_conversions.append({
+            "id": sub.get("id"),
+            "program": sub.get("program"),
+            "original_amount": sub["total_paid"],
+            "original_currency": sub.get("total_paid_currency", "EUR"),
+            "eur_amount": round(sub_eur, 2),
+            "exchange_rate_method": "per_payout",
+            "payouts": sub_details,
+        })
 
     # Scenario calculations using probability-weighted values
     # Pessimistic: only triaged/confirmed submissions (triager already validated)
@@ -263,11 +272,13 @@ def print_forecast(fc):
         print(f"\n{'─'*65}")
         print("PAYOUT CONVERSIONS (historical ECB rates):")
         for pc in fc["payout_conversions"]:
-            if pc["original_currency"] == "EUR":
-                print(f"  {pc['program']}: \u20ac{pc['eur_amount']:,.2f}")
-            else:
-                print(f"  {pc['program']}: {pc['original_currency']} {pc['original_amount']:,.2f} "
-                      f"\u00d7 {pc['exchange_rate']:.4f} ({pc['rate_date']}) = \u20ac{pc['eur_amount']:,.2f}")
+            print(f"  {pc['program']}: \u20ac{pc['eur_amount']:,.2f}")
+            for p in pc.get("payouts", []):
+                if p["currency"] == "EUR":
+                    print(f"    \u2514 {p['type']}: \u20ac{p['eur_amount']:,.2f}")
+                else:
+                    print(f"    \u2514 {p['type']}: {p['currency']} {p['amount']:,.2f} "
+                          f"\u00d7 {p['exchange_rate']:.4f} ({p['rate_date']}) = \u20ac{p['eur_amount']:,.2f}")
 
     print(f"\n{'─'*65}")
     print(f"{'SCENARIO':<25} {'ADDITIONAL':>12} {'TOTAL':>12}")
