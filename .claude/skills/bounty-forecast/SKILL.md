@@ -130,12 +130,13 @@ open outputs/intigriti-inbox/bounty_report.html
 
 ### Step 7: Present Findings
 Summarize to the user:
-1. **Earnings** — confirmed total (EUR, historical FX) and pending estimates
-2. **AI triager highlights** — which findings are strong vs weak, with reasoning
-3. **Top programs to focus on** — ranked recommendations with evidence
-4. **Programs to avoid/deprioritize** — based on rejection patterns
-5. **Unexploited opportunities** — programs with local work never submitted
-6. **Key improvements** — actionable changes to increase acceptance rate
+1. **Monthly breakdown** — past months (actual earnings), current month (confirmed + pending EV), next 3 months (projected)
+2. **Earnings** — confirmed total (EUR, historical FX) and pending estimates
+3. **AI triager highlights** — which findings are strong vs weak, with reasoning
+4. **Top programs to focus on** — ranked recommendations with evidence
+5. **Programs to avoid/deprioritize** — based on rejection patterns
+6. **Unexploited opportunities** — programs with local work never submitted
+7. **Key improvements** — actionable changes to increase acceptance rate
 
 ## Reference
 

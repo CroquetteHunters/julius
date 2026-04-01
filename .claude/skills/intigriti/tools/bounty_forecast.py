@@ -14,7 +14,7 @@ import json
 import sys
 import urllib.request
 import urllib.error
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 # Fallback rates if Frankfurter API is unavailable
@@ -77,6 +77,272 @@ def classify_program_type(sub):
     if sub["listed_bounty"] == 0:
         return "vdp"
     return "bounty"
+
+
+def month_label(ym):
+    """Convert 'YYYY-MM' to 'Jan 2026' style label."""
+    y, m = ym.split("-")
+    names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return f"{names[int(m)-1]} {y}"
+
+
+def add_months(ym, n):
+    """Add n months to a 'YYYY-MM' string."""
+    y, m = int(ym[:4]), int(ym[5:7])
+    m += n
+    while m > 12:
+        m -= 12
+        y += 1
+    return f"{y:04d}-{m:02d}"
+
+
+# Intigriti default validation times (working days) by severity.
+# Source: programs referencing go.intigriti.com/triage-standards
+# Multiplied by 1.4 to convert working days → calendar days.
+INTIGRITI_DEFAULT_VALIDATION_DAYS = {
+    "Exceptional": round(3 * 1.4),   # 4 calendar days
+    "Critical": round(3 * 1.4),      # 4
+    "High": round(7 * 1.4),          # 10
+    "Medium": round(15 * 1.4),       # 21
+    "Low": round(15 * 1.4),          # 21
+}
+
+# Extra buffer: time from submission to Intigriti picking it up (before validation starts)
+TRIAGE_PICKUP_BUFFER_DAYS = 3
+
+
+def parse_validation_times(severity_assessment_content):
+    """Parse validation times from a program's severityAssessments markdown.
+    Returns dict like {"Exceptional": 4, "Critical": 4, "High": 10, ...} in calendar days,
+    or None if no table found."""
+    import re
+    if not severity_assessment_content:
+        return None
+
+    # Look for markdown table rows with severity + days
+    # Format: | Exceptional | 3 Working days |
+    pattern = re.compile(
+        r'\|\s*(Exceptional|Critical|High|Medium|Low)\s*\|\s*(\d+)\s*[Ww]orking\s*days?\s*\|',
+        re.IGNORECASE
+    )
+    times = {}
+    for match in pattern.finditer(severity_assessment_content):
+        sev = match.group(1).capitalize()
+        working_days = int(match.group(2))
+        calendar_days = round(working_days * 1.4)
+        times[sev] = calendar_days
+
+    return times if times else None
+
+
+def fetch_program_validation_times(programs_handles, cookie_path=None):
+    """Fetch validation times for programs from Intigriti API.
+    programs_handles: dict of {company_name: "companyHandle/programHandle"}
+    Returns: {company_name: {severity: calendar_days}} """
+    cookie = None
+    if cookie_path is None:
+        cookie_path = Path.home() / ".intigriti" / "session_cookie.txt"
+    if cookie_path.exists():
+        cookie = cookie_path.read_text().strip()
+    if not cookie:
+        return {}
+
+    result = {}
+    for company, handle in programs_handles.items():
+        try:
+            url = f"https://app.intigriti.com/api/core/researcher/programs/{handle}"
+            req = urllib.request.Request(url)
+            req.add_header("Cookie", f"__Host-Intigriti.Web.Researcher={cookie}")
+            req.add_header("Accept", "application/json")
+            req.add_header("User-Agent", "IntiForecaster/1.0")
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            sa = data.get("severityAssessments", [])
+            if sa:
+                content = sa[0].get("content", {}).get("content", "")
+                times = parse_validation_times(content)
+                if times:
+                    result[company] = times
+        except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError):
+            pass
+
+    return result
+
+
+def _empty_month():
+    return {
+        "confirmed_eur": 0, "pending_ev_eur": 0,
+        "submitted": 0, "paid": 0, "rejected": 0, "pending": 0,
+        "submissions": [],
+    }
+
+
+def build_monthly_breakdown(payout_conversions, scored_pending, report, today=None):
+    """Build month-by-month breakdown with KPIs: earnings, submissions, acceptance rate."""
+    if today is None:
+        today = date.today()
+    current_ym = today.strftime("%Y-%m")
+
+    months = {}  # "YYYY-MM" -> month data
+
+    # --- Activity metrics: group ALL submissions by created_at month ---
+    for sub in report.get("paid_submissions", []):
+        ym = (sub.get("created_at") or "")[:7]
+        if not ym:
+            continue
+        if ym not in months:
+            months[ym] = _empty_month()
+        months[ym]["submitted"] += 1
+        months[ym]["paid"] += 1
+
+    for sub in report.get("pending_submissions", []):
+        ym = (sub.get("created_at") or "")[:7]
+        if not ym:
+            continue
+        if ym not in months:
+            months[ym] = _empty_month()
+        months[ym]["submitted"] += 1
+        months[ym]["pending"] += 1
+
+    for sub in report.get("rejected_submissions", []):
+        ym = (sub.get("created_at") or "")[:7]
+        if not ym:
+            continue
+        if ym not in months:
+            months[ym] = _empty_month()
+        months[ym]["submitted"] += 1
+        months[ym]["rejected"] += 1
+
+    # --- Confirmed payouts by paid_date month ---
+    for pc in payout_conversions:
+        for p in pc.get("payouts", []):
+            rd = p.get("rate_date") or ""
+            ym = rd[:7] if rd and rd != "N/A" else current_ym
+            if ym not in months:
+                months[ym] = _empty_month()
+            months[ym]["confirmed_eur"] += p.get("eur_amount", 0)
+            months[ym]["submissions"].append({
+                "id": pc.get("id"),
+                "program": pc.get("program"),
+                "amount_eur": round(p.get("eur_amount", 0), 2),
+                "type": "paid",
+            })
+
+    # --- Fetch program validation times (from API or defaults) ---
+    # Collect unique program handles from pending submissions
+    program_handles = {}
+    for s in scored_pending:
+        company = s.get("company", "")
+        handle = s.get("program_handle", "")
+        if company and handle and company not in program_handles:
+            program_handles[company] = handle
+
+    # Fetch custom validation times from programs that publish them
+    print("[*] Fetching program validation times...")
+    custom_times = fetch_program_validation_times(program_handles)
+    if custom_times:
+        print(f"[+] Custom validation times from: {', '.join(custom_times.keys())}")
+
+    # --- Distribute pending EV by estimated resolution date ---
+    triage_details = {}  # company -> {severity: days, source}
+    for s in scored_pending:
+        ev = s.get("expected_value_eur", 0)
+        if ev <= 0:
+            continue
+
+        company = s.get("company", s.get("program", ""))
+        severity = s.get("severity", "Medium")
+        created = s.get("created_at", "")
+        try:
+            d_created = date.fromisoformat(created[:10]) if created else today
+        except (ValueError, TypeError):
+            d_created = today
+
+        # Use program-specific times if available, else Intigriti defaults
+        if company in custom_times and severity in custom_times[company]:
+            validation_days = custom_times[company][severity]
+            source = "program"
+        else:
+            validation_days = INTIGRITI_DEFAULT_VALIDATION_DAYS.get(severity, 21)
+            source = "intigriti-default"
+
+        total_days = validation_days + TRIAGE_PICKUP_BUFFER_DAYS
+        est_resolve = d_created + timedelta(days=total_days)
+
+        # Track for display
+        if company not in triage_details:
+            triage_details[company] = {"source": source}
+        triage_details[company][severity] = total_days
+
+        # If estimated resolution is in the past, assume it resolves this month
+        if est_resolve < today:
+            est_resolve = today
+
+        target_ym = est_resolve.strftime("%Y-%m")
+        if target_ym not in months:
+            months[target_ym] = _empty_month()
+        months[target_ym]["pending_ev_eur"] += ev
+        months[target_ym]["submissions"].append({
+            "id": s.get("id"),
+            "program": company,
+            "amount_eur": round(ev, 2),
+            "type": "pending" if target_ym == current_ym else "projected",
+            "est_resolve": est_resolve.isoformat(),
+            "validation_days": total_days,
+            "source": source,
+        })
+
+    # --- Fill gaps and build result ---
+    all_yms = sorted(months.keys())
+    if not all_yms:
+        return []
+
+    first_ym = min(all_yms[0], current_ym)
+    last_ym = max(all_yms[-1], current_ym)
+
+    result = []
+    ym = first_ym
+    while ym <= last_ym:
+        entry = months.get(ym, _empty_month())
+        if ym < current_ym:
+            mtype = "past"
+        elif ym == current_ym:
+            mtype = "current"
+        else:
+            mtype = "future"
+
+        total = entry["confirmed_eur"] + entry["pending_ev_eur"]
+        resolved = entry["paid"] + entry["rejected"]
+        acc_rate = round(entry["paid"] / resolved, 2) if resolved > 0 else None
+
+        result.append({
+            "month": ym,
+            "label": month_label(ym),
+            "type": mtype,
+            "confirmed_eur": round(entry["confirmed_eur"], 2),
+            "pending_ev_eur": round(entry["pending_ev_eur"], 2),
+            "total_eur": round(total, 2),
+            "submitted": entry["submitted"],
+            "paid": entry["paid"],
+            "rejected": entry["rejected"],
+            "pending": entry["pending"],
+            "acceptance_rate": acc_rate,
+            "submissions": entry["submissions"],
+        })
+        ym = add_months(ym, 1)
+
+    # Build triage stats summary for display
+    triage_stats = {
+        "default_validation_days": INTIGRITI_DEFAULT_VALIDATION_DAYS,
+        "pickup_buffer_days": TRIAGE_PICKUP_BUFFER_DAYS,
+        "programs": {
+            company: info
+            for company, info in sorted(triage_details.items())
+        },
+    }
+
+    return result, triage_stats
 
 
 def score_submission(sub, historical_rate=None):
@@ -171,6 +437,21 @@ def forecast(report, current_rates, historical_rate=None, ai_evaluations=None):
 
     scored.sort(key=lambda x: x["expected_value_eur"], reverse=True)
 
+    # Add estimated resolution deadline per submission (based on program validation times)
+    today = date.today()
+    for s in scored:
+        severity = s.get("severity", "Medium")
+        validation_days = INTIGRITI_DEFAULT_VALIDATION_DAYS.get(severity, 21)
+        total_days = validation_days + TRIAGE_PICKUP_BUFFER_DAYS
+        created = s.get("created_at", "")
+        try:
+            d_created = date.fromisoformat(created[:10]) if created else today
+        except (ValueError, TypeError):
+            d_created = today
+        est = d_created + timedelta(days=total_days)
+        s["est_resolve_date"] = est.isoformat()
+        s["est_overdue"] = est < today
+
     total_ev = sum(s["expected_value_eur"] for s in scored)
     total_potential = sum(s["expected_bounty_eur"] for s in scored)
 
@@ -228,10 +509,15 @@ def forecast(report, current_rates, historical_rate=None, ai_evaluations=None):
         for s in scored
     )
 
+    # Monthly breakdown
+    monthly, triage_stats = build_monthly_breakdown(payout_conversions, scored, report)
+
     return {
         "historical_acceptance_rate": round(historical_rate, 2) if historical_rate else None,
         "confirmed_earnings_eur": round(confirmed_eur, 2),
         "payout_conversions": payout_conversions,
+        "monthly_breakdown": monthly,
+        "triage_stats": triage_stats,
         "pending_count": len(scored),
         "scenarios": {
             "pessimistic": {

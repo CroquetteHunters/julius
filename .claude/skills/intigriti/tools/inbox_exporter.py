@@ -168,6 +168,7 @@ def extract_summary(sub, classification, payouts=None):
         "total_paid": 0,
         "total_paid_currency": None,
         "awaiting_feedback": sub.get("awaitingFeedback", False),
+        "program_handle": f"{sub.get('companyHandle', '')}/{sub.get('programHandle', '')}",
         "created_at": datetime.fromtimestamp(sub.get("createdAt", 0)).isoformat(),
         "last_updated": datetime.fromtimestamp(sub.get("lastUpdatedAt", 0)).isoformat() if sub.get("lastUpdatedAt") else None,
     }
