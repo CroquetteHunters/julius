@@ -131,6 +131,30 @@ def generate_html(fc, report, researcher_name=None, recommendations=None):
   .rec-evidence span {{ color: var(--muted); }}
   .rec-next {{ font-size: 0.85rem; }}
   .rec-next li {{ margin: 0.15rem 0; }}
+  .month-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin: 0.8rem 0; }}
+  .month-card.month-current {{ border-color: var(--accent); border-width: 2px; }}
+  .month-card.month-future {{ opacity: 0.7; border-style: dashed; }}
+  .month-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }}
+  .month-title {{ font-size: 1.05rem; font-weight: 600; }}
+  .month-card.month-current .month-title {{ color: var(--accent); }}
+  .month-card.month-future .month-title {{ color: var(--muted); }}
+  .month-type-badge {{ font-size: 0.7rem; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; }}
+  .type-past {{ background: rgba(139,143,163,0.15); color: var(--muted); }}
+  .type-current {{ background: rgba(99,102,241,0.15); color: var(--accent); }}
+  .type-future {{ background: rgba(234,179,8,0.15); color: var(--yellow); }}
+  .month-kpis {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }}
+  .month-kpi {{ text-align: center; }}
+  .month-kpi-value {{ font-size: 1.3rem; font-weight: 700; }}
+  .month-kpi-label {{ font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }}
+  .month-bar-row {{ display: flex; align-items: center; gap: 0.5rem; margin-top: 0.7rem; }}
+  .month-bar-track {{ flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; display: flex; }}
+  .month-bar-confirmed {{ height: 100%; background: var(--green); border-radius: 3px 0 0 3px; }}
+  .month-bar-pending {{ height: 100%; background: rgba(99,102,241,0.5); }}
+  .month-bar-labels {{ display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem; }}
+  .monthly-legend {{ display: flex; gap: 1.5rem; margin: 0.5rem 0 0.3rem; font-size: 0.78rem; color: var(--muted); }}
+  .legend-dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 0.3rem; vertical-align: middle; }}
+  .legend-confirmed {{ background: var(--green); }}
+  .legend-pending {{ background: rgba(99,102,241,0.5); }}
 </style>
 </head>
 <body>
@@ -200,13 +224,106 @@ def generate_html(fc, report, researcher_name=None, recommendations=None):
   </tr>"""
 
     html += """
-</table>
+</table>"""
 
+    # Monthly Breakdown section
+    monthly = fc.get("monthly_breakdown", [])
+    triage_stats = fc.get("triage_stats", {})
+    if monthly:
+        max_total = max((m["total_eur"] for m in monthly), default=1) or 1
+        html += """
+
+<!-- Monthly Timeline -->
+<h2>Monthly Breakdown</h2>"""
+
+        # Triage time reference
+        if triage_stats and triage_stats.get("programs"):
+            defaults = triage_stats.get("default_validation_days", {})
+            buffer_d = triage_stats.get("pickup_buffer_days", 3)
+            html += f"""
+<p style="color:var(--muted);font-size:0.82rem;margin-bottom:0.6rem">
+  Forecast based on program validation times (+{buffer_d}d pickup buffer).
+  Intigriti defaults: """
+            def_tags = [f'{sev} <span style="color:var(--accent)">{d+buffer_d}d</span>' for sev, d in defaults.items()]
+            html += ", ".join(def_tags)
+            # Show programs with custom times
+            custom_progs = [p for p, info in triage_stats["programs"].items() if info.get("source") == "program"]
+            if custom_progs:
+                html += f"""<br>Custom times: {', '.join(custom_progs)}"""
+            html += """
+</p>"""
+
+        html += """
+<div class="monthly-legend">
+  <span><span class="legend-dot legend-confirmed"></span>Confirmed</span>
+  <span><span class="legend-dot legend-pending"></span>Expected (pending)</span>
+</div>"""
+        for m in monthly:
+            mtype = m["type"]
+            type_label = {"past": "past", "current": "current", "future": "forecast"}.get(mtype, mtype)
+            type_class = f"type-{mtype}"
+            confirmed_pct = (m["confirmed_eur"] / max_total * 100) if max_total else 0
+            pending_pct = (m["pending_ev_eur"] / max_total * 100) if max_total else 0
+
+            # KPI colors
+            earnings_color = "green" if m["confirmed_eur"] > 0 else "muted"
+            expected_color = "accent" if m["pending_ev_eur"] > 0 else ("green" if m["confirmed_eur"] > 0 else "muted")
+            subs_val = m.get("submitted", 0)
+            acc_rate = m.get("acceptance_rate")
+            acc_display = f"{acc_rate:.0%}" if acc_rate is not None else "&mdash;"
+            acc_color = "red" if acc_rate is not None and acc_rate < 0.3 else ("yellow" if acc_rate is not None and acc_rate < 0.5 else "green")
+            if acc_rate is None:
+                acc_color = "muted"
+
+            # For future months, show projected submissions as pending count
+            pending_count = m.get("pending", 0)
+            paid_count = m.get("paid", 0)
+            rejected_count = m.get("rejected", 0)
+
+            html += f"""
+<div class="month-card month-{mtype}">
+  <div class="month-header">
+    <span class="month-title">{m['label']}</span>
+    <span class="month-type-badge {type_class}">{type_label}</span>
+  </div>
+  <div class="month-kpis">
+    <div class="month-kpi">
+      <div class="month-kpi-value {earnings_color}">&euro;{m['confirmed_eur']:,.0f}</div>
+      <div class="month-kpi-label">Confirmed</div>
+    </div>
+    <div class="month-kpi">
+      <div class="month-kpi-value {expected_color}">&euro;{m['total_eur']:,.0f}</div>
+      <div class="month-kpi-label">Expected Total</div>
+    </div>
+    <div class="month-kpi">
+      <div class="month-kpi-value">{subs_val}</div>
+      <div class="month-kpi-label">Submitted</div>
+    </div>
+    <div class="month-kpi">
+      <div class="month-kpi-value {acc_color}">{acc_display}</div>
+      <div class="month-kpi-label">Acc. Rate</div>
+    </div>
+  </div>
+  <div class="month-bar-row">
+    <div class="month-bar-track">
+      <div class="month-bar-confirmed" style="width:{confirmed_pct:.1f}%"></div>
+      <div class="month-bar-pending" style="width:{pending_pct:.1f}%"></div>
+    </div>
+  </div>
+  <div class="month-bar-labels">
+    <span>{paid_count} paid &middot; {rejected_count} rejected &middot; {pending_count} pending</span>
+    <span>&euro;{m['total_eur']:,.0f}</span>
+  </div>
+</div>"""
+
+        html += "\n"
+
+    html += """
 <!-- Ranked Pipeline -->
 <h2>Pipeline Ranked by Expected Value</h2>
 <p style="color:var(--muted);font-size:0.85rem;margin-bottom:0.5rem">Click any row to expand AI triager analysis</p>
 <table id="pipeline-table">
-  <tr><th>#</th><th>Prob</th><th>EV (&euro;)</th><th>Potential</th><th>Sev</th><th>Program</th><th>Title</th></tr>"""
+  <tr><th>#</th><th>Prob</th><th>EV (&euro;)</th><th>Potential</th><th>Sev</th><th>Deadline</th><th>Program</th><th>Title</th></tr>"""
 
     for i, s in enumerate(ranked, 1):
         prob = s["acceptance_prob"]
@@ -219,6 +336,18 @@ def generate_html(fc, report, researcher_name=None, recommendations=None):
 
         title_display = s['title'][:80] + ('...' if len(s['title']) > 80 else '')
 
+        # Deadline column
+        est_date = s.get("est_resolve_date", "")
+        overdue = s.get("est_overdue", False)
+        if est_date:
+            deadline_display = est_date
+            if overdue:
+                deadline_cell = f'<span class="badge badge-red" title="Overdue — request feedback">{est_date} &#x26A0;</span>'
+            else:
+                deadline_cell = f'<span style="font-size:0.8rem;color:var(--muted)">{est_date}</span>'
+        else:
+            deadline_cell = '&mdash;'
+
         html += f"""
   <tr class="{row_class}" data-target="{row_id}" onclick="toggleDetail(this)">
     <td>{i}</td>
@@ -226,6 +355,7 @@ def generate_html(fc, report, researcher_name=None, recommendations=None):
     <td style="font-family:monospace">&euro;{s['expected_value_eur']:,.0f}</td>
     <td style="font-family:monospace">&euro;{s['expected_bounty_eur']:,.0f}</td>
     <td><span class="badge {sev_class}">{s['severity']}</span></td>
+    <td style="white-space:nowrap">{deadline_cell}</td>
     <td>{s['company']}{vdp_tag}</td>
     <td style="font-size:0.85rem">{title_display}</td>
   </tr>"""
@@ -247,7 +377,7 @@ def generate_html(fc, report, researcher_name=None, recommendations=None):
 
             html += f"""
   <tr class="detail-row" id="{row_id}">
-    <td colspan="7">
+    <td colspan="8">
       <div class="detail-panel">
         <div class="meta-row">
           <span>Status: <strong>{status}</strong></span>
