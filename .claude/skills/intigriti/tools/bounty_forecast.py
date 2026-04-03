@@ -373,7 +373,11 @@ def forecast(report, current_rates, historical_rate=None, ai_evaluations=None, p
     if ai_evaluations:
         for ev in ai_evaluations:
             if ev.get("ai_evaluation"):
+                # Nested format: {"id": "...", "ai_evaluation": {...}}
                 ai_by_id[ev["id"]] = ev["ai_evaluation"]
+            elif ev.get("acceptance_probability") is not None:
+                # Flat format: {"id": "...", "acceptance_probability": 0.65, ...}
+                ai_by_id[ev["id"]] = ev
 
     total_closed = report["breakdown"]["paid"] + report["breakdown"]["rejected"]
     if total_closed > 0 and historical_rate is None:
