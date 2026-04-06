@@ -659,15 +659,49 @@ async def settings_page(request: Request):
 
 
 # ──────────────────────────────────────────────────────────────
-# Sync endpoint (HTMX)
+# Sync endpoints (HTMX)
 # ──────────────────────────────────────────────────────────────
 @app.post("/sync")
 async def trigger_sync(request: Request):
+    """Sync HackerOne only (token-based, automatic)."""
     from bounty_intel.sync.delta import sync_all
 
-    results = sync_all(sources=["hackerone"])  # Only H1 from server (Intigriti needs browser)
+    results = sync_all(sources=["hackerone"])
+    h1_count = results.get("hackerone", {}).get("upserted", 0)
     return HTMLResponse(
-        content="<span class='badge badge-green'>Synced</span>",
+        content=f"<span class='badge badge-green'>H1: {h1_count} synced</span>",
+        headers={"HX-Trigger": "reload-all"},
+    )
+
+
+@app.post("/sync/intigriti")
+async def trigger_intigriti_sync(request: Request):
+    """Sync Intigriti using a pasted session cookie."""
+    form = await request.form()
+    cookie = form.get("cookie", "").strip()
+    if not cookie:
+        return HTMLResponse("<span class='badge badge-red'>No cookie provided</span>")
+
+    # Validate cookie works
+    from bounty_intel.sync.intigriti import _validate_cookie, sync as inti_sync
+    if not _validate_cookie(cookie):
+        return HTMLResponse("<span class='badge badge-red'>Cookie invalid or expired</span>")
+
+    # Store cookie for this sync (temporarily set in settings)
+    import bounty_intel.config
+    bounty_intel.config.settings.intigriti_cookie = cookie
+
+    # Run sync
+    result = inti_sync()
+    upserted = result.get("upserted", 0)
+
+    # Update watermark
+    if result.get("max_updated"):
+        from bounty_intel import service
+        service.update_sync_state("intigriti", result["max_updated"])
+
+    return HTMLResponse(
+        content=f"<span class='badge badge-green'>Intigriti: {upserted} synced</span>",
         headers={"HX-Trigger": "reload-all"},
     )
 

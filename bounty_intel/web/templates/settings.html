@@ -3,42 +3,66 @@
 {% block content %}
 <div class="page-header"><h1>Settings</h1></div>
 
-<h2>Platform Credentials</h2>
-<div class="grid">
+<h2>Sync</h2>
+<div class="grid" style="grid-template-columns: 1fr 1fr">
+  <!-- HackerOne sync -->
   <div class="card">
-    <div class="card-label">HackerOne</div>
-    <div class="card-value" style="font-size:1.2rem">
-      {% if h1_configured %}<span class="green">Configured</span>{% else %}<span class="red">Not configured</span>{% endif %}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+      <div>
+        <strong style="font-size:1.1rem">HackerOne</strong>
+        {% if h1_configured %}<span class="badge badge-green" style="margin-left:0.4rem">Token configured</span>{% else %}<span class="badge badge-red" style="margin-left:0.4rem">Not configured</span>{% endif %}
+      </div>
+      <button class="btn btn-primary" hx-post="/sync" hx-swap="innerHTML" hx-target="#h1-sync-result" hx-indicator="#h1-spinner">
+        Sync Now <span id="h1-spinner" class="htmx-indicator"><span class="spinner"></span></span>
+      </button>
     </div>
+    <div class="muted" style="font-size:0.85rem">
+      Automatic via API token. No user interaction needed.
+      {% if h1_sync %}<br>Last sync: {{ h1_sync.last_sync_at.strftime('%Y-%m-%d %H:%M UTC') if h1_sync.last_sync_at else 'Never' }}{% endif %}
+    </div>
+    <div id="h1-sync-result" style="margin-top:0.5rem"></div>
   </div>
+
+  <!-- Intigriti sync -->
   <div class="card">
-    <div class="card-label">Intigriti</div>
-    <div class="card-value" style="font-size:1.2rem">
-      <span class="yellow">Cookie-based (1h TTL)</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+      <div>
+        <strong style="font-size:1.1rem">Intigriti</strong>
+        <span class="badge badge-yellow" style="margin-left:0.4rem">Cookie required</span>
+      </div>
+      <button class="btn btn-primary" onclick="document.getElementById('inti-modal').style.display='flex'">
+        Sync Now
+      </button>
     </div>
-    <div class="card-label">Sync locally to refresh</div>
+    <div class="muted" style="font-size:0.85rem">
+      Requires session cookie (expires ~1h). Paste from browser DevTools.
+      {% if inti_sync %}<br>Last sync: {{ inti_sync.last_sync_at.strftime('%Y-%m-%d %H:%M UTC') if inti_sync.last_sync_at else 'Never' }}{% endif %}
+    </div>
+    <div id="inti-sync-result" style="margin-top:0.5rem"></div>
   </div>
 </div>
 
-<h2>Last Sync</h2>
-<div class="grid">
-  <div class="card">
-    <div class="card-label">HackerOne</div>
-    <div class="card-value" style="font-size:1rem">
-      {% if h1_sync %}{{ days_ago(h1_sync.last_sync_at) }}{% else %}<span class="muted">Never</span>{% endif %}
+<!-- Intigriti Cookie Modal -->
+<div id="inti-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center">
+  <div class="card" style="width:520px;max-width:90vw">
+    <h3 style="margin-bottom:1rem">Sync Intigriti</h3>
+    <div class="muted" style="font-size:0.85rem;margin-bottom:1rem;line-height:1.6">
+      <strong>How to get the cookie:</strong><br>
+      1. Open <a href="https://app.intigriti.com/researcher/inbox" target="_blank" style="color:var(--accent)">app.intigriti.com</a> (log in if needed)<br>
+      2. Press <kbd style="background:var(--bg);padding:1px 6px;border-radius:3px;font-size:0.8rem">F12</kbd> to open DevTools<br>
+      3. Go to <strong>Application</strong> &rarr; <strong>Cookies</strong> &rarr; <strong>app.intigriti.com</strong><br>
+      4. Find <code>__Host-Intigriti.Web.Researcher</code> &rarr; copy its <strong>Value</strong>
     </div>
-    {% if h1_sync and h1_sync.last_sync_at %}
-    <div class="card-label">{{ h1_sync.last_sync_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
-    {% endif %}
-  </div>
-  <div class="card">
-    <div class="card-label">Intigriti</div>
-    <div class="card-value" style="font-size:1rem">
-      {% if inti_sync %}{{ days_ago(inti_sync.last_sync_at) }}{% else %}<span class="muted">Never</span>{% endif %}
-    </div>
-    {% if inti_sync and inti_sync.last_sync_at %}
-    <div class="card-label">{{ inti_sync.last_sync_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
-    {% endif %}
+    <form hx-post="/sync/intigriti" hx-target="#inti-sync-result" hx-swap="innerHTML"
+          hx-on::after-request="document.getElementById('inti-modal').style.display='none'">
+      <textarea name="cookie" placeholder="Paste cookie value here..." style="width:100%;height:80px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;font-size:0.8rem;padding:0.8rem;resize:none;margin-bottom:1rem"></textarea>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button type="button" class="btn" onclick="document.getElementById('inti-modal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          Sync <span class="htmx-indicator"><span class="spinner"></span></span>
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -52,11 +76,4 @@
   {% endfor %}
 </div>
 
-<h2>Actions</h2>
-<div style="display:flex;gap:0.5rem;margin-top:1rem">
-  <button class="btn btn-primary" hx-post="/sync" hx-swap="innerHTML" hx-target="#sync-result">
-    Sync HackerOne Now
-  </button>
-  <span id="sync-result"></span>
-</div>
 {% endblock %}
