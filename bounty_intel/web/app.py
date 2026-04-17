@@ -262,10 +262,14 @@ async def dashboard(request: Request):
     session = get_session()
     total_subs = session.scalar(select(func.count(Submission.id))) or 0
     pending_count = session.scalar(select(func.count(Submission.id)).where(
-        Submission.disposition.in_(["new", "triaged", "needs_more_info", "accepted"]))) or 0
-    paid_count = session.scalar(select(func.count(Submission.id)).where(Submission.disposition == "resolved")) or 0
+        Submission.disposition.in_(["new", "triaged", "needs_more_info", "unresolved", "nue"]))) or 0
+    paid_count = session.scalar(select(func.count(Submission.id)).where(
+        Submission.disposition.in_(["resolved", "accepted"]))) or 0
     rejected_all = session.scalars(select(Submission.disposition).where(
-        Submission.disposition.in_(["duplicate", "informative", "not_applicable", "wont_fix"]))).all()
+        Submission.disposition.in_([
+            "duplicate", "informative", "not_applicable", "wont_fix",
+            "out_of_scope", "not_reproducible", "invalid",
+        ]))).all()
     rejected_count = len(rejected_all)
     dup_count = sum(1 for d in rejected_all if d == "duplicate")
     info_count = sum(1 for d in rejected_all if d == "informative")
@@ -313,7 +317,10 @@ async def programs_list(
     prog_data = []
     for p in programs:
         sub_count = session.scalar(select(func.count(Submission.id)).where(Submission.program_id == p.id)) or 0
-        paid_count = session.scalar(select(func.count(Submission.id)).where(Submission.program_id == p.id, Submission.disposition == "resolved")) or 0
+        paid_count = session.scalar(select(func.count(Submission.id)).where(
+            Submission.program_id == p.id,
+            Submission.disposition.in_(["resolved", "accepted"]),
+        )) or 0
         # Only consider reports that were actually submitted
         last_report_at = session.scalar(
             select(func.max(SubmissionReport.submitted_at)).where(
@@ -738,9 +745,9 @@ async def submissions_list(request: Request):
             "ai_outcome": ai_eval.likely_outcome if ai_eval else "",
         }
 
-        if sub.disposition in ("new", "triaged", "needs_more_info", "accepted"):
+        if sub.disposition in ("new", "triaged", "needs_more_info", "unresolved", "nue"):
             pending.append(entry)
-        elif sub.disposition == "resolved":
+        elif sub.disposition in ("resolved", "accepted"):
             closed_paid.append(entry)
         else:
             closed_rejected.append(entry)
@@ -1015,9 +1022,14 @@ async def recommendations(request: Request):
         if matching:
             pid = matching[0].id
             paid = session.scalar(select(func.count(Submission.id)).where(
-                Submission.program_id == pid, Submission.disposition == "resolved")) or 0
+                Submission.program_id == pid,
+                Submission.disposition.in_(["resolved", "accepted"]))) or 0
             rejected = session.scalar(select(func.count(Submission.id)).where(
-                Submission.program_id == pid, Submission.disposition.in_(["duplicate", "informative", "not_applicable"]))) or 0
+                Submission.program_id == pid,
+                Submission.disposition.in_([
+                    "duplicate", "informative", "not_applicable", "wont_fix",
+                    "out_of_scope", "not_reproducible", "invalid",
+                ]))) or 0
             total_findings = session.scalar(select(func.count(Finding.id)).where(Finding.program_id == pid)) or 0
             building_blocks = session.scalar(select(func.count(Finding.id)).where(
                 Finding.program_id == pid, Finding.is_building_block.is_(True))) or 0
