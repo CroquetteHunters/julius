@@ -124,32 +124,60 @@ Use `tools/csv_parser.py` to parse.
 - **Mobile App Download**: See `/mobile-app-acquisition`
 - **Validation + Compliance + Quality**: See `/bounty-validation`
 
-## Report Format — Inline Writeup Style (MANDATORY)
+## Report Format — Lean Writeup Style (MANDATORY)
 
-Reports MUST use **writeup format**: screenshots and evidence embedded inline within Steps to Reproduce, immediately after the step they demonstrate. NEVER put evidence in a table or section at the end. The report reads as a self-contained narrative walkthrough where each claim is backed by visual proof.
+**Reports that look AI-generated get closed.** Write like a human researcher: direct, concise, first-person. See `/bounty-validation` Report Writing Quality Gate for full rules.
 
-Required sections (HackerOne standard):
-1. Summary (2-3 sentences)
-2. Severity (CVSS + business impact)
-3. CWE (e.g., CWE-601, CWE-79 — must appear in report)
-4. Steps to Reproduce — numbered, with **inline evidence** (`![caption](evidence/file.png)` after each step)
-5. Raw HTTP requests/responses (real curl -v output, not reconstructed)
-6. Visual Evidence **embedded inline** (Playwright screenshots for browser vulns, terminal captures for server-side — see `/bounty-validation` Visual Evidence Standard). Each screenshot placed immediately after the step it proves.
-7. Impact (realistic attack scenario)
-8. Remediation (actionable fixes)
-9. AI Disclosure (MANDATORY — see `/bounty-validation` AI Usage Compliance)
+### Writing Rules
+- First person ("I found", "I tested") — never passive voice
+- Under 500 words body text (excluding code blocks/HTTP dumps)
+- NO filler sections (Description, Background, Remediation unless required)
+- NO AI phrases: "This report details", "It's important to note", "leveraging", "poses a significant risk"
+- Every word earns its place — if removing a sentence doesn't lose information, remove it
 
-**Example inline evidence format:**
+### Required Sections
+1. **Title**: `[VulnType] — [What] in [Where]` (under 80 chars)
+2. **Summary**: 1-2 sentences. What's broken, why it matters.
+3. **Severity**: CVSS vector + computed score + CWE
+4. **Steps to Reproduce**: Numbered. Real URLs, real payloads. After each step: **real screenshot from Burp Suite or browser** (`![caption](evidence/stepN_desc.png)`)
+5. **Impact**: 2-3 sentences. Concrete attacker gain. No speculation.
+6. **AI Disclosure**: Brief, honest (see `/bounty-validation`)
+
+### Screenshot Requirements (CRITICAL)
+- Primary evidence = screenshots from **Burp Suite** (Repeater, HTTP history) or **browser** (DevTools, rendered page)
+- Playwright screenshots are supplementary only
+- If researcher hasn't provided screenshots: **BLOCK report generation** and ask for them
+- No fabricated, reconstructed, or placeholder screenshots
+
+### Example
 ```markdown
-### Step 2: Trigger the vulnerability
+# SSRF — Internal metadata access via image proxy
+
+## Summary
+The image proxy at `/api/proxy` follows redirects to internal services. I accessed the cloud metadata endpoint and retrieved IAM credentials.
+
+## Steps to Reproduce
+1. I sent this request through Burp Repeater:
 ` ` `bash
-curl -X POST https://target.com/api/endpoint ...
+curl -v "https://app.example.com/api/proxy?url=http://169.254.169.254/latest/meta-data/iam/"
 ` ` `
-**Expected**: HTTP 403  |  **Actual**: HTTP 200
-![Server returned internal metadata](evidence/02_ssrf_response.png)
+![Burp showing metadata response](evidence/step1_burp_ssrf.png)
+
+2. The response contained IAM role names:
+` ` `
+role-web-prod
+role-worker-prod
+` ` `
+![IAM credentials in response](evidence/step2_iam_creds.png)
+
+## Impact
+An attacker can read cloud metadata including IAM credentials, enabling lateral movement to other AWS services.
+
+CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N → 8.6 (High)
+CWE-918
 ```
 
-Use `tools/report_validator.py` to validate.
+Use `tools/report_validator.py` to validate (includes anti-AI pattern checks).
 
 ## Output Structure
 

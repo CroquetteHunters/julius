@@ -4,11 +4,18 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import urllib.request
 import urllib.error
 from typing import Any
 
 from bounty_intel.config import settings
+
+logger = logging.getLogger("bounty-intel.platforms")
+# Ensure output goes to stderr (not stdout) — stdout is reserved for MCP JSON-RPC
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler(__import__("sys").stderr))
+    logger.setLevel(logging.INFO)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -26,7 +33,7 @@ def _api_get(url: str, headers: dict[str, str]) -> dict[str, Any] | None:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode())
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, OSError) as exc:
-        print(f"[platforms] request failed for {url}: {exc}")
+        logger.warning("request failed for %s: %s", url, exc)
         return None
 
 
@@ -203,7 +210,7 @@ def _normalize_hackerone_scope(raw: dict[str, Any]) -> dict[str, Any]:
 def search_intigriti_programs(*, status: str = "", limit: int = 50) -> list[dict]:
     """List Intigriti programs via PAT. Returns normalized dicts."""
     if not settings.intigriti_pat:
-        print("[platforms] INTIGRITI_PAT not configured, skipping Intigriti search")
+        logger.warning("INTIGRITI_PAT not configured, skipping Intigriti search")
         return []
 
     url = f"{_INTIGRITI_BASE}/programs?limit={limit}&offset=0"
@@ -213,7 +220,7 @@ def search_intigriti_programs(*, status: str = "", limit: int = 50) -> list[dict
 
     records = data.get("records", data) if isinstance(data, dict) else data
     if not isinstance(records, list):
-        print(f"[platforms] unexpected Intigriti response format")
+        logger.warning("unexpected Intigriti response format")
         return []
 
     programs = [_normalize_intigriti_program(r) for r in records]
@@ -228,7 +235,7 @@ def search_intigriti_programs(*, status: str = "", limit: int = 50) -> list[dict
 def get_intigriti_program_detail(program_id: str) -> dict | None:
     """Get full Intigriti program detail including scope and rules."""
     if not settings.intigriti_pat:
-        print("[platforms] INTIGRITI_PAT not configured")
+        logger.warning("INTIGRITI_PAT not configured")
         return None
 
     url = f"{_INTIGRITI_BASE}/programs/{program_id}"
@@ -264,7 +271,7 @@ def get_intigriti_program_detail(program_id: str) -> dict | None:
 def search_hackerone_programs(*, limit: int = 50) -> list[dict]:
     """List H1 programs the researcher has access to. Returns normalized dicts."""
     if not settings.hackerone_username or not settings.hackerone_api_token:
-        print("[platforms] HackerOne credentials not configured, skipping H1 search")
+        logger.warning("HackerOne credentials not configured, skipping H1 search")
         return []
 
     url = f"{_HACKERONE_BASE}/hackers/programs?page[size]={limit}"
@@ -274,7 +281,7 @@ def search_hackerone_programs(*, limit: int = 50) -> list[dict]:
 
     raw_programs = data.get("data", [])
     if not isinstance(raw_programs, list):
-        print(f"[platforms] unexpected HackerOne response format")
+        logger.warning("unexpected HackerOne response format")
         return []
 
     return [_normalize_hackerone_program(r) for r in raw_programs]
@@ -283,7 +290,7 @@ def search_hackerone_programs(*, limit: int = 50) -> list[dict]:
 def get_hackerone_program_scope(handle: str) -> list[dict]:
     """Get H1 structured scopes for a program."""
     if not settings.hackerone_username or not settings.hackerone_api_token:
-        print("[platforms] HackerOne credentials not configured")
+        logger.warning("HackerOne credentials not configured")
         return []
 
     url = f"{_HACKERONE_BASE}/hackers/programs/{handle}/structured_scopes?page[size]=100"
@@ -293,7 +300,7 @@ def get_hackerone_program_scope(handle: str) -> list[dict]:
 
     raw_scopes = data.get("data", [])
     if not isinstance(raw_scopes, list):
-        print(f"[platforms] unexpected HackerOne scope response format")
+        logger.warning("unexpected HackerOne scope response format")
         return []
 
     return [_normalize_hackerone_scope(s) for s in raw_scopes]
@@ -380,7 +387,7 @@ def search_bugcrowd_programs(*, status: str = "", limit: int = 50, comprehensive
         if status:
             status_lower = status.lower()
             programs = [p for p in programs if p.get("status", "").lower() == status_lower]
-        print(f"[platforms] Found {len(programs)} Bugcrowd programs via JSON API")
+        logger.info("Found %d Bugcrowd programs via JSON API", len(programs))
         return programs
 
     # Fallback: official API (if credentials configured)
@@ -393,10 +400,10 @@ def search_bugcrowd_programs(*, status: str = "", limit: int = 50, comprehensive
                 programs = [_normalize_bugcrowd_program(p) for p in programs_raw]
                 if status:
                     programs = [p for p in programs if p["status"] == status.lower()]
-                print(f"[platforms] Found {len(programs)} programs via Bugcrowd credentials API")
+                logger.info("Found %d programs via Bugcrowd credentials API", len(programs))
                 return programs
 
-    print("[platforms] No Bugcrowd data source available")
+    logger.warning("No Bugcrowd data source available")
     return _fallback_bugcrowd_programs()
 
 
@@ -440,7 +447,7 @@ def _fetch_bugcrowd_engagements_json(limit: int = 300) -> list[dict]:
             with _req.urlopen(req, timeout=15) as resp:
                 data = _json.loads(resp.read().decode())
         except Exception as e:
-            print(f"[platforms] Bugcrowd JSON API error on page {page}: {e}")
+            logger.warning("Bugcrowd JSON API error on page %d: %s", page, e)
             break
 
         engagements = data.get("engagements", [])
@@ -504,8 +511,8 @@ def _fallback_bugcrowd_programs() -> list[dict]:
         }
     ]
 
-    print("[platforms] Returned fallback option for manual program entry")
-    print("[platforms] Use /bugcrowd manual-mode for guided setup")
+    logger.info("Returned fallback option for manual program entry")
+    logger.info("Use /bugcrowd manual-mode for guided setup")
 
     return known_programs
 
@@ -522,10 +529,10 @@ def _get_bugcrowd_detail_via_scraper(program_code: str) -> dict | None:
         scraper = BugcrowdScraper(headless=True, authenticated=True)
         result = scraper.get_program_detail(program_code)
         if result and not result.get("manual_entry_required"):
-            print(f"[platforms] Got program details for {program_code} via scraper ({result.get('discovery_method', 'unknown')})")
+            logger.info("Got program details for %s via scraper (%s)", program_code, result.get('discovery_method', 'unknown'))
             return result
     except (ImportError, Exception) as e:
-        print(f"[platforms] Scraper fallback failed for {program_code}: {e}")
+        logger.warning("Scraper fallback failed for %s: %s", program_code, e)
     return None
 
 
@@ -544,7 +551,7 @@ def get_bugcrowd_program_detail(program_code: str) -> dict | None:
             else:
                 program["scope"] = []
             program["rules"] = data.get("brief", "") or data.get("description", "")
-            print(f"[platforms] Got program details for {program_code} via credentials API")
+            logger.info("Got program details for %s via credentials API", program_code)
             return program
 
     # Try scraper (brief.json → Playwright) — returns scope, rules, description
@@ -556,12 +563,12 @@ def get_bugcrowd_program_detail(program_code: str) -> dict | None:
     programs = _fetch_bugcrowd_engagements_json(limit=300)
     for p in programs:
         if p.get("handle") == program_code:
-            print(f"[platforms] Got basic info only for {program_code} via engagements.json (no scope)")
+            logger.info("Got basic info only for %s via engagements.json (no scope)", program_code)
             p["scope"] = []
             p["rules"] = ""
             return p
 
-    print(f"[platforms] Creating manual template for {program_code}")
+    logger.info("Creating manual template for %s", program_code)
     return _create_manual_program_template(program_code)
 
 
@@ -600,8 +607,8 @@ def get_bugcrowd_program_scope(program_code: str) -> list[dict]:
     # Fallback: scraper (brief.json → Playwright) extracts scope from program page
     scraper_result = _get_bugcrowd_detail_via_scraper(program_code)
     if scraper_result and scraper_result.get("scope"):
-        print(f"[platforms] Got scope for {program_code} via scraper")
+        logger.info("Got scope for %s via scraper", program_code)
         return scraper_result["scope"]
 
-    print(f"[platforms] No scope available for {program_code}")
+    logger.warning("No scope available for %s", program_code)
     return []

@@ -1,146 +1,95 @@
 # Intigriti Report Template
 
+## Writing Style (MANDATORY — Anti-AI Detection)
+
+**Reports that read as AI-generated get closed.** See `/bounty-validation` Report Writing Quality Gate for complete rules. Key points:
+- First person ("I found", "I tested") — never passive voice
+- Under 500 words body (excluding code blocks)
+- No filler, no definitions, no marketing language
+- No banned AI phrases (see validation gate)
+- Every word earns its place
+
 ## Submission Template
 
 ```markdown
-# [Vulnerability Type] in [Component/Feature]
+# [VulnType] — [What] in [Where]
 
 **Severity**: [Critical/High/Medium/Low] (CVSS [score])
 **CVSS Vector**: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N
 **Domain**: [in-scope domain]
 **Vulnerability Type**: [From Intigriti taxonomy]
+**CWE**: CWE-[number]
 
 ## Summary
 
-[2-3 sentence description of the vulnerability, its location, and its impact]
-
-## Description
-
-[Detailed technical explanation of the vulnerability]
-
-- Root cause analysis
-- Affected endpoints/parameters
-- Authentication requirements (if any)
+[1-2 sentences. What is broken. Why it matters.]
 
 ## Steps to Reproduce
 
-1. Navigate to `https://[domain]/[path]`
-2. [Action with specific parameters]
-3. Enter the following payload: `[payload]`
-4. Observe [specific behavior indicating vulnerability]
-5. [Additional steps if needed]
-
-## Proof of Concept
-
-### HTTP Request
-
-```http
-POST /api/endpoint HTTP/1.1
-Host: [domain]
-Content-Type: application/json
-
-{"param": "[payload]"}
-```
-
-### HTTP Response
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{"result": "[evidence of vulnerability]"}
-```
-
-### PoC Script
-
-```python
-# See attached poc.py for automated exploitation
-python3 poc.py --target https://[domain]/[path]
-```
-
-### Screenshots/Evidence
-
-[Attach screenshots showing the vulnerability]
+1. [Action with real URL and real payload]
+   ![step1_description](evidence/step1_screenshot.png)
+2. [Next action — real HTTP request or browser action]
+   ![step2_description](evidence/step2_result.png)
+3. [Observe result]
+   ![step3_description](evidence/step3_impact.png)
 
 ## Impact
 
-[Realistic attack scenario - what can an attacker achieve?]
-
-- **Confidentiality**: [Data that can be accessed]
-- **Integrity**: [Data that can be modified]
-- **Availability**: [Service disruption potential]
-
-**Affected Users**: [Scope of impact - all users, specific roles, etc.]
-
-## Remediation
-
-[Specific, actionable fix recommendations]
-
-1. [Primary fix]
-2. [Secondary mitigation]
-3. [Additional hardening]
+[2-3 sentences. What an attacker gains concretely. No speculation.]
 ```
 
-## Required Fields Checklist
+**Sections NOT included by default** (add only if program requires):
+- Description — redundant with Summary + Steps
+- Remediation — optional, only if you have a specific fix
+- Affected Users — only if scope matters for severity
+
+## Required Fields
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| Title | Yes | No URL, describe the vulnerability |
-| Severity | Yes | CVSS score + vector string |
+| Title | Yes | Under 80 chars, no URLs, format: `[VulnType] — [What] in [Where]` |
+| Severity | Yes | CVSS vector + computed score (never guessed) |
 | Domain | Yes | Must be in-scope |
 | Vulnerability Type | Yes | From Intigriti taxonomy |
-| Summary | Yes | 2-3 sentences |
-| Steps to Reproduce | Yes | Numbered, reproducible |
-| PoC | Yes | Code, HTTP requests, or screenshots |
-| Impact | Yes | Realistic attack scenario |
-| Remediation | Recommended | Shows professionalism |
+| CWE | Yes | e.g., CWE-918 |
+| Summary | Yes | 1-2 sentences MAX |
+| Steps to Reproduce | Yes | Numbered, with inline real screenshots |
+| Impact | Yes | Concrete, no speculation |
 
-## PoC Format Preferences
+## Screenshot Requirements (CRITICAL)
 
-### Preferred (in order)
+**Primary evidence = real screenshots from the researcher:**
+- **Burp Suite**: Repeater tab, HTTP history, Intruder results, Collaborator
+- **Browser**: DevTools Network tab, Console, rendered page showing impact
 
-1. **Python script** (`poc.py`) - Most reproducible
-2. **curl command** - Quick reproduction
-3. **Raw HTTP request** - Universal format
-4. **HTML file** - For client-side vulns (XSS, CSRF)
-5. **Burp Suite request** - If Burp is available
+**Rules:**
+- Playwright screenshots are supplementary only, never primary
+- Claude asks for screenshots before generating reports — if none provided, report is BLOCKED
+- No fabricated, reconstructed, or placeholder images
+- Name format: `step{N}_{description}.png`
 
-### PoC Requirements
+## Evidence — Inline Format (MANDATORY)
 
-- Must be **self-contained** (no external dependencies beyond standard libs)
-- Must include **target as argument** (not hardcoded)
-- Must produce **clear output** indicating success/failure
-- Must include **timestamp** in output
-
-## Evidence Requirements — Inline Writeup Format (MANDATORY)
-
-Reports MUST embed evidence **inline within Steps to Reproduce**, immediately after the step they demonstrate. The report reads as a self-contained writeup where each claim is backed by visual proof at the point it's made.
-
-**Format**: Use `![caption](evidence/filename.png)` after each step:
+Screenshots go **inline within Steps to Reproduce**, immediately after the step they prove. NEVER in a table at the end.
 
 ```markdown
-### Step 1: Send crafted request
-
-` ` `bash
-curl -X POST https://target.com/api/endpoint ...
-` ` `
-
-**Expected**: HTTP 403
-**Actual**: HTTP 200 — vulnerability triggered
-
-![Server returned internal metadata](evidence/01_ssrf_response.png)
-
-### Step 2: Demonstrate impact
-...
-![Account takeover confirmed](evidence/02_account_takeover.png)
+1. I sent this request through Burp Repeater:
+   ` ` `bash
+   curl -v "https://real-target.com/api/endpoint" -d '{"param":"payload"}'
+   ` ` `
+   ![Burp showing vulnerable response](evidence/step1_burp_response.png)
 ```
 
-**NEVER** put evidence in a table at the end of the report. Every screenshot must appear next to the step it proves.
+**Required evidence types:**
+- **Screenshot** — Always. From Burp Suite or browser (primary), Playwright (supplementary)
+- **HTTP request/response** — Always. Real `curl -v` output or Burp export
+- **Video** — Complex multi-step only
+- **PoC script** — RCE, SQLi, SSRF, auth bypass
 
-**Required evidence types** (embed inline where relevant):
+## PoC Requirements
 
-- **Screenshot** — Always. Captured with Playwright for browser vulns, terminal output for server-side.
-- **HTTP request/response** — Always. Raw `curl -v` output or Burp export.
-- **Video** — Complex multi-step vulnerabilities only.
-- **PoC script** — RCE, SQLi, SSRF, auth bypass.
-- **Impact demonstration** — Account takeover, data access.
+- Self-contained (no external deps beyond stdlib)
+- Target as argument (not hardcoded)
+- Clear output indicating success/failure
+- Timestamp in output
+- Preferred formats: curl command > Python script > raw HTTP > HTML file

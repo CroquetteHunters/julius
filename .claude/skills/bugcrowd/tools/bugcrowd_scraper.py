@@ -7,11 +7,19 @@ Fallback: Playwright browser automation — for program detail/scope extraction.
 """
 
 import json
+import logging
+import sys
 import re
 import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import Dict, List, Optional
+
+logger = logging.getLogger("bounty-intel.bugcrowd-scraper")
+# Ensure output goes to stderr (not stdout) — stdout is reserved for MCP JSON-RPC
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler(sys.stderr))
+    logger.setLevel(logging.INFO)
 
 CACHE_DIR = Path.home() / ".bugcrowd"
 COOKIE_CACHE_FILE = CACHE_DIR / "session_cookies.json"
@@ -66,7 +74,7 @@ def _api_get(url: str, cookies: Dict[str, str], timeout: int = 15) -> Optional[d
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
     except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as e:
-        print(f"[scraper] API error for {url}: {e}")
+        logger.warning("API error for %s: %s", url, e)
         return None
 
 
@@ -88,9 +96,9 @@ class BugcrowdScraper:
         if self.authenticated:
             self.cookies = _load_cookies()
             if self.cookies:
-                print(f"[scraper] Loaded {len(self.cookies)} session cookies")
+                logger.info("Loaded %d session cookies", len(self.cookies))
             else:
-                print("[scraper] No valid session cookies — using public access")
+                logger.warning("No valid session cookies — using public access")
                 self.authenticated = False
 
     # ── Program listing (JSON API) ────────────────────────────
@@ -114,15 +122,14 @@ class BugcrowdScraper:
 
             all_engagements.extend(engagements)
             total = data.get("paginationMeta", {}).get("totalCount", 0)
-            print(f"[scraper] Page {page}: {len(engagements)} programs "
-                  f"({len(all_engagements)}/{total})")
+            logger.info("Page %d: %d programs (%d/%d)", page, len(engagements), len(all_engagements), total)
 
             if len(all_engagements) >= total:
                 break
             page += 1
 
         programs = [self._normalize(e) for e in all_engagements[:limit]]
-        print(f"[scraper] Discovered {len(programs)} programs via JSON API")
+        logger.info("Discovered %d programs via JSON API", len(programs))
         return programs
 
     def comprehensive_discovery(self, limit: int = 300) -> List[Dict]:
@@ -306,7 +313,7 @@ class BugcrowdScraper:
                     "discovery_method": "playwright",
                 }
             except Exception as e:
-                print(f"[scraper] Playwright detail error for {handle}: {e}")
+                logger.warning("Playwright detail error for %s: %s", handle, e)
                 return self._fallback_template(handle)
             finally:
                 browser.close()

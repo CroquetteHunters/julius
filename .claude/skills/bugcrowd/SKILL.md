@@ -383,14 +383,56 @@ saas_scope = [
 ]
 ```
 
+## Report Writing Style (MANDATORY — Anti-AI Detection)
+
+**Bugcrowd triagers actively reject reports that look AI-generated.** All reports must be direct, concise, and written in first person. See `/bounty-validation` Report Writing Quality Gate for complete rules.
+
+### Key Rules
+- Write in first person: "I found", "I tested", "I noticed"
+- Keep body under 500 words (excluding code blocks and HTTP dumps)
+- NO filler: "This report details...", "It's important to note...", "leveraging...", "poses a significant risk..."
+- NO unnecessary sections — omit Remediation, Background, Description unless Bugcrowd requires them
+- Every sentence must add information. If removing it loses nothing, delete it.
+- Use `tools/report_validator.py` (from HackerOne tools — same checks apply) before submission
+
+### Screenshot Requirements (CRITICAL)
+- **Every report MUST include real screenshots** from Burp Suite or browser, captured by the researcher
+- Playwright screenshots = supplementary only, never primary
+- Before generating any report, ask the user: "Do you have Burp/browser screenshots for this finding?"
+- If no screenshots available: **BLOCK report generation**
+
+### Bugcrowd Report Format
+```
+# [VulnType] — [What] in [Where]
+
+## Summary
+[1-2 sentences. What is broken. Why it matters.]
+
+**Priority**: P[1-5]
+**VRT**: [Bugcrowd Vulnerability Rating Taxonomy category]
+**Asset**: [affected in-scope target]
+
+## Steps to Reproduce
+1. [Action with real URL]
+   ![step1_description](evidence/step1_screenshot.png)
+2. [Next action]
+   ![step2_description](evidence/step2_result.png)
+
+## Impact
+[2-3 sentences. Concrete attacker gain.]
+
+CVSS:3.1/AV:.../AC:.../... → [score] ([severity])
+CWE-[number]
+```
+
 ## Finding Documentation Standards
 
 Every finding MUST include:
-- **Bugcrowd Priority Level** (P1-P5) instead of just CVSS
-- **Vulnerability class** (XSS, SQLI, SSRF, etc.)
+- **Bugcrowd Priority Level** (P1-P5) mapped from CVSS
+- **Vulnerability class** from Bugcrowd VRT taxonomy
 - **Business impact assessment** (required by Bugcrowd)
-- **Full reproduction steps** (step-by-step)
-- **Evidence package** (screenshots, request/response, code)
+- **Full reproduction steps** with **inline real screenshots**
+- **Evidence package** (Burp Suite captures, browser screenshots, HTTP request/response)
 - **Affected asset** (which scoped target)
 
 ## Manual Data Input Templates

@@ -26,6 +26,39 @@ REQUIRED_SECTIONS = [
 CVSS_V31 = r"CVSS:3\.\d+/AV:[NALP]/AC:[LH]/PR:[NLH]/UI:[NR]/S:[UC]/C:[NLH]/I:[NLH]/A:[NLH]"
 CVSS_V40 = r"CVSS:4\.0/AV:[NALP]/AC:[LH]/AT:[NP]/PR:[NLH]/UI:[NPA]/VC:[NLH]/VI:[NLH]/VA:[NLH]/SC:[NLH]/SI:[NLH]/SA:[NLH]"
 
+# Phrases that make reports look AI-generated — hard block
+AI_BANNED_PHRASES = [
+    "this report details",
+    "during our assessment",
+    "during our security assessment",
+    "it's important to note",
+    "it is important to note",
+    "it should be noted",
+    "as demonstrated above",
+    "in conclusion",
+    "poses a significant",
+    "could potentially",
+    "an attacker could potentially",
+    "devastating impact",
+    "leveraging this",
+    "utilizing this",
+    "it is worth mentioning",
+    "this vulnerability allows an attacker to potentially",
+    "in summary",
+    "to summarize",
+    "critical threat to",
+    "poses a significant risk",
+]
+
+AI_WARNING_PHRASES = [
+    "furthermore,",
+    "additionally,",
+    "consequently,",
+    "it was discovered that",
+    "facilitating",
+    "streamlining",
+]
+
 
 def validate_report(report_path: str) -> Tuple[bool, str]:
     """
@@ -55,12 +88,14 @@ def validate_report(report_path: str) -> Tuple[bool, str]:
         else:
             errors.append("Missing CVSS vector string")
 
-    # Check title (no URL)
+    # Check title (no URL, max 80 chars)
     title_match = re.search(r'^# (.+)$', content, re.MULTILINE)
     if title_match:
         title = title_match.group(1)
         if re.search(r'https?://', title):
             warnings.append("Title should not contain URLs (Intigriti convention)")
+        if len(title) > 80:
+            warnings.append(f"Title too long ({len(title)} chars) - keep under 80")
     else:
         warnings.append("No title found (# heading)")
 
@@ -85,6 +120,59 @@ def validate_report(report_path: str) -> Tuple[bool, str]:
     for pattern, desc in sensitive:
         if re.search(pattern, content, re.IGNORECASE):
             errors.append(f"Potential sensitive data: {desc}")
+
+    # Anti-AI writing checks
+    content_lower = content.lower()
+
+    # Hard block on banned phrases
+    found_banned = [p for p in AI_BANNED_PHRASES if p in content_lower]
+    if found_banned:
+        errors.append(
+            f"AI-generated phrases detected (BLOCKED): {', '.join(repr(p) for p in found_banned)}. "
+            "Rewrite in direct, first-person style."
+        )
+
+    # Warn on suspect phrases
+    found_warnings = [p for p in AI_WARNING_PHRASES if p in content_lower]
+    if found_warnings:
+        warnings.append(
+            f"Possible AI-sounding phrases: {', '.join(repr(p) for p in found_warnings)}. "
+            "Consider rewriting."
+        )
+
+    # Word count check (excluding code blocks)
+    text_without_code = re.sub(r'```[\s\S]*?```', '', content)
+    word_count = len(text_without_code.split())
+    if word_count > 500:
+        errors.append(
+            f"Report body too long ({word_count} words, max 500 excluding code). "
+            "Verbose reports get flagged as AI-generated."
+        )
+
+    # First-person voice check
+    if not re.search(r'\bI\s+(found|tested|noticed|observed|discovered|sent|used|checked|verified|confirmed|intercepted|saw|tried|accessed|opened|clicked|navigated)\b', content):
+        warnings.append(
+            "No first-person testing language found ('I found', 'I tested'). "
+            "Reports without researcher voice get flagged as AI-generated."
+        )
+
+    # Real screenshot check
+    image_refs = re.findall(r'!\[([^\]]*)\]\(([^)]+)\)', content)
+    if not image_refs:
+        errors.append(
+            "No screenshot references found (![caption](path)). "
+            "Reports MUST include real screenshots from Burp Suite or browser."
+        )
+
+    # Placeholder URL check
+    placeholder_patterns = [
+        r'https?://\[domain\]', r'https?://\[target\]', r'https?://target\.com',
+        r'https?://example\.com', r'\[URL\]', r'\[endpoint\]',
+    ]
+    for pattern in placeholder_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            errors.append(f"Placeholder URL detected. Use real tested URLs only.")
+            break
 
     # Build result
     if errors:

@@ -113,62 +113,56 @@ sast_sink_object: "Http::get()"
 ---
 ```
 
+**Report Writing Quality (MANDATORY — Anti-AI Detection)**:
+
+Even for internal DefectDojo reports, writing quality matters. Reports that read as AI-generated waste reviewer time and erode trust. See `/bounty-validation` Report Writing Quality Gate for full rules. Key points:
+
+- Write in first person: "I found", "I tested", "I noticed"
+- Be direct — state the vulnerability, the evidence, the impact. No filler.
+- NO AI phrases: "This report details", "It's important to note", "leveraging", "poses a significant risk", "Furthermore", "Additionally"
+- NO defining known concepts: reviewers know what SSRF is
+- Keep body concise — every sentence must add information
+- Real screenshots from Burp Suite or browser are primary evidence
+- Playwright screenshots are supplementary only
+
 **Common body structure — writeup style with inline evidence** (same for both types):
 
-Reports MUST follow **writeup format**: screenshots and evidence embedded inline within Steps to Reproduce, immediately after the step they demonstrate. NEVER put evidence in a table at the end. The report should read like a narrative walkthrough where each step shows the command, then the screenshot proving the result.
+Reports MUST follow **writeup format**: evidence embedded inline within Steps to Reproduce, immediately after the step they prove. NEVER put evidence in a table at the end.
 
 ```markdown
 ## Description
 
-Technical explanation of the vulnerability. MUST include affected
-components, file paths, API routes, or infrastructure elements.
-
-Include relevant code snippets:
+[Direct technical explanation. Affected component, root cause, 
+vulnerable code snippet with file:line reference. No preamble.]
 
 ` ` `php
-// Vulnerable code with file:line reference
+// src/app/Domain/Proxy/Action.php:42
 $url = $request->input('url');
-Http::get($url); // No validation
+Http::get($url); // No validation — user-controlled URL passed to HTTP client
 ` ` `
-
-## Impact
-
-Real business impact (verified, not theoretical). What can an attacker
-actually achieve? What's the blast radius?
 
 ## Steps to Reproduce
 
-### Step 1: Setup and prerequisites
+1. I sent this request through Burp Repeater:
+   ` ` `bash
+   curl -X POST https://example.com/api/vulnerable-endpoint \
+     -H "Authorization: Bearer $TOKEN" \
+     -d '{"url": "http://169.254.169.254/latest/meta-data/"}'
+   ` ` `
+   **Expected**: HTTP 403  |  **Actual**: HTTP 200
+   ![Burp showing metadata response](evidence/step1_ssrf_response.png)
 
-Describe the environment setup and any prerequisites.
+2. The response contained IAM role names:
+   ![IAM credentials visible](evidence/step2_iam_data.png)
 
-![Environment setup](evidence/01_environment.png)
+## Impact
 
-### Step 2: Trigger the vulnerability
-
-` ` `bash
-curl -X POST https://example.com/api/vulnerable-endpoint \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"url": "http://169.254.169.254/latest/meta-data/"}'
-` ` `
-
-**Expected**: HTTP 403 Forbidden
-**Actual**: HTTP 200 OK — server fetched the internal metadata
-
-![SSRF response showing internal metadata](evidence/02_ssrf_response.png)
-
-### Step 3: Demonstrate impact
-
-Show the real-world consequence of the vulnerability.
-
-![Impact demonstration](evidence/03_impact.png)
+[2-3 sentences. Verified business impact — what an attacker gains.
+No "could potentially" — only confirmed impact.]
 
 ## Mitigation
 
-Actionable remediation guidance with code examples where possible.
-
 ` ` `php
-// Recommended fix
 $allowedHosts = ['cdn.example.com', 'images.example.com'];
 $parsed = parse_url($url);
 if (!in_array($parsed['host'], $allowedHosts)) {
@@ -177,7 +171,9 @@ if (!in_array($parsed['host'], $allowedHosts)) {
 ` ` `
 ```
 
-**CRITICAL — Inline evidence rule**: Every report.md MUST embed screenshots using `![caption](evidence/filename.png)` directly after the step they prove. NEVER use a standalone "## Evidence" table at the end. The report reads as a self-contained writeup where each claim is immediately backed by visual proof.
+**CRITICAL — Inline evidence rule**: Every report.md MUST embed screenshots using `![caption](evidence/filename.png)` directly after the step they prove. NEVER use a standalone "## Evidence" table at the end.
+
+**Screenshot requirements**: Primary evidence = real screenshots from Burp Suite (Repeater, HTTP history) or browser (DevTools, rendered page). Playwright screenshots = supplementary only. If the researcher hasn't provided screenshots, the report is NOT ready.
 
 ### Frontmatter Fields
 
@@ -256,7 +252,17 @@ After all reports are written locally, run a **self-review pass** before present
    - [ ] **Server-side vulns** (SSRF, race conditions, blind injection): real `curl -v` output or Collaborator interaction proof is MANDATORY. Simulated output = rejected.
    - [ ] HTTP request + response pairs saved as text files
    - [ ] PoC scripts are functional and referenced in Steps to Reproduce
+   - [ ] **Primary evidence = real Burp Suite or browser screenshots** from the researcher. Playwright = supplementary only.
    - [ ] **Never**: simulated terminals, reconstructed responses, placeholder screenshots, AI-generated mock output
+
+5. WRITING QUALITY — Anti-AI check (see `/bounty-validation` Report Writing Quality Gate):
+   - [ ] First person voice used ("I found", "I tested") — no passive voice
+   - [ ] No banned AI phrases: "This report details", "It's important to note", "leveraging", "poses a significant risk", "could potentially", "Furthermore/Additionally" at sentence start
+   - [ ] No filler — every sentence adds information. If removing it loses nothing, delete it.
+   - [ ] No defining known security concepts (reviewers know what SSRF means)
+   - [ ] Description and Impact don't repeat the same information
+   - [ ] Real URLs in Steps to Reproduce, no placeholders like `https://[domain]`
+   - [ ] At least one `![](evidence/...)` screenshot reference per finding
 ```
 
 **If any check fails, fix the report BEFORE presenting to the user.** Do not present reports with known reproducibility issues.

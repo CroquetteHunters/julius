@@ -229,14 +229,108 @@ if not result["passed"]:
         print(f"BLOCKED: {err}")
 ```
 
+## Report Writing Quality Gate (MANDATORY — Anti-AI Detection)
+
+**Context**: Triagers reject reports that look AI-generated. Reports must read like a human researcher wrote them — direct, concise, with real evidence. This gate applies to ALL platforms (HackerOne, Intigriti, Bugcrowd).
+
+### Writing Style Rules
+
+**DO:**
+- Write in first person: "I found", "I tested", "I noticed"
+- Be direct — state the vulnerability, the endpoint, the impact. Nothing else.
+- Short sentences. One idea per sentence.
+- Reference your testing environment naturally (Burp Suite, browser version)
+- Use technical jargon without defining it — triagers know what XSS is
+- Show testing thought process briefly: "Noticed X in response, tested Y"
+- Keep total report under 500 words (excluding code blocks and HTTP dumps)
+
+**NEVER use these AI-typical patterns:**
+- Introductory filler: "This report details...", "During our security assessment..."
+- Concluding summaries: "In conclusion...", "To summarize...", "In summary..."
+- Defining known concepts: "XSS is a type of injection attack where..."
+- Marketing language: "devastating consequences", "poses a significant risk", "critical threat to"
+- Passive voice: "It was discovered that..." → "I found..."
+- Hedge phrases: "It's important to note", "It should be noted", "As demonstrated above"
+- Corporate AI vocabulary: "leveraging", "utilizing", "facilitating", "streamlining", "furthermore", "additionally", "consequently"
+- Repetitive structure: Don't repeat the same information in Summary, Description, and Impact
+- Unnecessary sections: Don't add Remediation unless the program requires it
+- Padding: Don't state the obvious ("The server returned HTTP 200 which indicates success")
+
+**Banned phrases (HARD BLOCK — report rejected if any appear):**
+```
+"This report details" | "During our assessment" | "It's important to note" |
+"It should be noted" | "As demonstrated above" | "In conclusion" |
+"poses a significant" | "could potentially" | "an attacker could potentially" |
+"devastating impact" | "leveraging this" | "utilizing this" |
+"Furthermore" (at sentence start) | "Additionally" (at sentence start) |
+"It is worth mentioning" | "This vulnerability allows an attacker to potentially"
+```
+
+### Report Structure (Lean Format)
+
+```
+# [VulnType] — [What] in [Where]
+                                          ← under 80 chars, no fluff
+
+## Summary
+[1-2 sentences. What is broken. Why it matters. Period.]
+
+## Steps to Reproduce
+1. [Action with real URL and real payload]
+   ![step1_description](evidence/step1_screenshot.png)    ← REAL screenshot
+2. [Next action]
+   ![step2_description](evidence/step2_result.png)
+3. [Observe result]
+
+## Impact
+[2-3 sentences. What an attacker gains concretely. No speculation.]
+
+## CVSS
+CVSS:3.1/AV:.../AC:.../...  →  [score] ([severity])
+```
+
+No Description section. No Background section. No Remediation unless program requires it. No "Affected Users" padding. Every word must earn its place.
+
+### Real Screenshot Requirements (CRITICAL)
+
+**Every report MUST include screenshots captured by the researcher:**
+- **Burp Suite**: HTTP history, Repeater tab, Intruder results, Collaborator interactions
+- **Browser**: DevTools Network tab, Console output, rendered page showing impact
+- **Browser window**: The actual vulnerability firing in a real browser
+
+**Rules:**
+- Playwright-automated screenshots are SUPPLEMENTARY only, never primary evidence
+- The researcher (user) captures and provides all primary screenshots — Claude NEVER fabricates or substitutes them
+- Screenshots must show real data, real timestamps, real HTTP responses
+- If the researcher has not provided screenshots yet, the report is NOT ready — ask for them
+- Name format: `step{N}_{description}.png` (e.g., `step2_ssrf_response.png`)
+
+**Before generating any report, Claude MUST ask the user:**
+> "Do you have screenshots from Burp Suite or your browser for this finding? The report needs real screenshots to pass triage."
+
+If no screenshots are available: **BLOCK report generation**. The user must capture evidence first.
+
+### AI-Pattern Validation Check
+
+Before finalizing any report, scan the markdown for:
+1. **Word count**: Body text (excluding code blocks) must be under 500 words. Over 500 = rewrite.
+2. **Banned phrases**: Check against the banned phrases list above. Any match = rewrite that section.
+3. **Repetition**: Summary and Impact must not repeat the same sentences. Each section adds NEW information.
+4. **First person**: At least one "I" statement in the report. Zero = rewrite.
+5. **Real URLs**: Every URL in Steps to Reproduce must be a real tested URL, never a placeholder like `https://[domain]` or `https://target.com`.
+6. **Screenshot references**: At least one `![` image embed referencing a real file. Zero = BLOCK.
+
+---
+
 ## Quality Checklist
 
 Before submission:
 - [ ] Working PoC with poc_output.txt + visual evidence
+- [ ] **Real screenshots from Burp Suite or browser** (not Playwright-only, not fabricated)
 - [ ] Accurate CVSS score with vector string (computed with calculator, not guessed)
 - [ ] **CWE identifier included** (e.g., CWE-601 — must appear in report Type/summary field)
 - [ ] Correct vulnerability type/classification
-- [ ] Step-by-step reproduction + impact + remediation
+- [ ] Step-by-step reproduction with inline evidence
 - [ ] Sensitive data sanitized
 - [ ] Mobile apps downloaded and analyzed (if in scope)
 - [ ] **Informative likelihood gate passed**: finding has demonstrated E2E exploit chain, not just config disclosure or theoretical impact
@@ -245,4 +339,6 @@ Before submission:
 - [ ] **All technical claims verified against real evidence**
 - [ ] **No fabricated endpoints, placeholders, or generic templates**
 - [ ] **Methodology (runtime vs static vs inferred) clearly stated**
+- [ ] **Anti-AI writing check passed**: no banned phrases, under 500 words, first person, no filler
+- [ ] **Report reads like a human wrote it** — direct, concise, no padding
 

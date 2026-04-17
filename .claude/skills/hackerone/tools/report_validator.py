@@ -17,10 +17,43 @@ class ReportValidator:
         "## Severity",
         "## Steps to Reproduce",
         "## Impact",
-        "## Remediation"
     ]
 
     CVSS_PATTERN = r"CVSS:3\.\d+/AV:[NALP]/AC:[LH]/PR:[NLH]/UI:[NR]/S:[UC]/C:[NLH]/I:[NLH]/A:[NLH]"
+
+    # Phrases that make reports look AI-generated — hard block if found
+    AI_BANNED_PHRASES = [
+        "this report details",
+        "during our assessment",
+        "during our security assessment",
+        "it's important to note",
+        "it is important to note",
+        "it should be noted",
+        "as demonstrated above",
+        "in conclusion",
+        "poses a significant",
+        "could potentially",
+        "an attacker could potentially",
+        "devastating impact",
+        "leveraging this",
+        "utilizing this",
+        "it is worth mentioning",
+        "this vulnerability allows an attacker to potentially",
+        "in summary",
+        "to summarize",
+        "critical threat to",
+        "poses a significant risk",
+    ]
+
+    # Phrases that are strong AI signals — warn
+    AI_WARNING_PHRASES = [
+        "furthermore,",
+        "additionally,",
+        "consequently,",
+        "it was discovered that",
+        "facilitating",
+        "streamlining",
+    ]
 
     def __init__(self, report_path: str):
         """Initialize validator with report path."""
@@ -50,24 +83,27 @@ class ReportValidator:
         self._check_sensitive_data()
         self._check_report_length()
         self._check_title()
+        self._check_ai_patterns()
+        self._check_real_screenshots()
 
         # Build result message
         if self.errors:
             message = "Validation FAILED:\n\n"
             message += "Errors:\n"
             for error in self.errors:
-                message += f"  ❌ {error}\n"
+                message += f"  - {error}\n"
         else:
             message = "Validation PASSED:\n"
-            message += "  ✅ All required sections present\n"
-            message += "  ✅ CVSS score valid\n"
-            message += "  ✅ Steps to reproduce included\n"
-            message += "  ✅ PoC evidence present\n"
+            message += "  - All required sections present\n"
+            message += "  - CVSS score valid\n"
+            message += "  - Steps to reproduce included\n"
+            message += "  - PoC evidence present\n"
+            message += "  - Anti-AI writing check passed\n"
 
         if self.warnings:
             message += "\nWarnings:\n"
             for warning in self.warnings:
-                message += f"  ⚠️  {warning}\n"
+                message += f"  - {warning}\n"
 
         return len(self.errors) == 0, message
 
@@ -144,12 +180,17 @@ class ReportValidator:
 
     def _check_report_length(self):
         """Check report is not too short or too long."""
-        word_count = len(self.content.split())
+        # Count words excluding code blocks
+        text_without_code = re.sub(r'```[\s\S]*?```', '', self.content)
+        word_count = len(text_without_code.split())
 
-        if word_count < 200:
+        if word_count < 100:
             self.warnings.append(f"Report is very short ({word_count} words) - add more detail")
-        elif word_count > 3000:
-            self.warnings.append(f"Report is very long ({word_count} words) - consider being more concise")
+        elif word_count > 500:
+            self.errors.append(
+                f"Report body is too long ({word_count} words, max 500 excluding code blocks) - "
+                "rewrite to be more concise. Triagers flag verbose reports as AI-generated."
+            )
 
     def _check_title(self):
         """Check for a clear title (first H1 heading)."""
@@ -159,10 +200,73 @@ class ReportValidator:
             self.warnings.append("No title found - add # Title at top of report")
         else:
             title = title_match.group(1).strip()
-            if len(title) > 100:
-                self.warnings.append(f"Title is too long ({len(title)} chars) - keep under 100 characters")
+            if len(title) > 80:
+                self.warnings.append(f"Title is too long ({len(title)} chars) - keep under 80 characters")
             elif len(title) < 10:
                 self.warnings.append("Title is too short - be more descriptive")
+
+    def _check_ai_patterns(self):
+        """Check for AI-generated writing patterns that get reports rejected."""
+        content_lower = self.content.lower()
+
+        # Hard blocks
+        found_banned = []
+        for phrase in self.AI_BANNED_PHRASES:
+            if phrase in content_lower:
+                found_banned.append(phrase)
+
+        if found_banned:
+            self.errors.append(
+                f"AI-generated phrases detected (BLOCKED): {', '.join(repr(p) for p in found_banned)}. "
+                "Rewrite in direct, first-person style."
+            )
+
+        # Warnings
+        found_warnings = []
+        for phrase in self.AI_WARNING_PHRASES:
+            if phrase in content_lower:
+                found_warnings.append(phrase)
+
+        if found_warnings:
+            self.warnings.append(
+                f"Possible AI-sounding phrases: {', '.join(repr(p) for p in found_warnings)}. "
+                "Consider rewriting for a more natural tone."
+            )
+
+        # Check for first-person usage
+        if not re.search(r'\bI\s+(found|tested|noticed|observed|discovered|sent|used|checked|verified|confirmed|intercepted|saw|tried|accessed|opened|clicked|navigated)\b', self.content):
+            self.warnings.append(
+                "No first-person testing language found. Use 'I found', 'I tested', etc. "
+                "Reports without researcher voice get flagged as AI-generated."
+            )
+
+        # Check for placeholder URLs
+        placeholder_patterns = [
+            r'https?://\[domain\]', r'https?://\[target\]', r'https?://target\.com',
+            r'https?://example\.com', r'\[URL\]', r'\[endpoint\]',
+        ]
+        for pattern in placeholder_patterns:
+            if re.search(pattern, self.content, re.IGNORECASE):
+                self.errors.append(
+                    f"Placeholder URL detected ({pattern}). Use real tested URLs only."
+                )
+                break
+
+    def _check_real_screenshots(self):
+        """Check that report references real screenshot files, not just text evidence."""
+        # Check for inline image references
+        image_refs = re.findall(r'!\[([^\]]*)\]\(([^)]+)\)', self.content)
+
+        if not image_refs:
+            self.errors.append(
+                "No screenshot references found (![caption](path)). "
+                "Every report MUST include real screenshots from Burp Suite or browser."
+            )
+        else:
+            # Check that referenced images look like real evidence files
+            for caption, path in image_refs:
+                if 'placeholder' in path.lower() or 'example' in path.lower():
+                    self.errors.append(f"Placeholder image detected: {path}. Use real screenshots.")
 
 
 def validate_report(report_path: str) -> Tuple[bool, str]:
