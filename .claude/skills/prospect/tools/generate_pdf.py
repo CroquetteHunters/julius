@@ -14,6 +14,22 @@ from html import escape
 from pathlib import Path
 from datetime import date
 
+
+def _load_dotenv():
+    """Load .env from repo root into os.environ (no third-party deps)."""
+    env_path = Path(__file__).resolve().parents[4] / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip())
+
+
+_load_dotenv()
+
 try:
     import matplotlib
     matplotlib.use("Agg")
