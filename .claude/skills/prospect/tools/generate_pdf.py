@@ -306,41 +306,37 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
                 y no ser&aacute; corregida hasta que se actualice.</p>"""
         disclosure_html = ""
         if version_disclosure:
-            items = ", ".join(escape(v) for v in version_disclosure[:6])
-            disclosure_html = f"""<p>El servidor revela informaci&oacute;n t&eacute;cnica en las
-            cabeceras: {items}. Esto facilita a un atacante buscar vulnerabilidades espec&iacute;ficas
-            para esas versiones.</p>"""
+            disclosure_html = f"""<p>El servidor web muestra p&uacute;blicamente qu&eacute; programas
+            y versiones utiliza. Esta informaci&oacute;n permite a un atacante buscar
+            fallos de seguridad espec&iacute;ficos para esas versiones exactas, sin necesidad
+            de hacer pruebas previas.</p>"""
         cms_html = ""
         if cms_name:
-            cms_html = f"<p>CMS detectado: <strong>{escape(cms_name)}</strong></p>"
+            cms_safe = escape(cms_name.split(" ")[0]) if " " in cms_name else escape(cms_name)
+            cms_html = f"<p>La web est&aacute; construida con <strong>{escape(cms_name)}</strong>, un gestor de contenidos que requiere actualizaciones peri&oacute;dicas de seguridad.</p>"
         plugins_html = ""
         if plugins_detected:
-            plugin_list = ", ".join(escape(p) for p in plugins_detected[:8])
-            plugins_html = f"<p>Plugins detectados: {plugin_list}</p>"
+            plugins_html = f"""<p>Adem&aacute;s, se han identificado <strong>{len(plugins_detected)}
+            componentes adicionales</strong> (plugins) instalados en la web, cada uno de los cuales
+            puede contener sus propios fallos de seguridad si no se mantiene actualizado.</p>"""
         cve_html = ""
         if cve_findings:
-            cve_html = "<h4 style='margin:10px 0 5px;font-size:10pt'>Vulnerabilidades conocidas (fuente: NIST NVD)</h4>"
-            for cf in cve_findings:
-                total = cf.get("cves_total", 0)
-                critical = cf.get("critical", 0)
-                high = cf.get("high", 0)
-                sw = escape(cf.get("software", ""))
-                badge_color = "#dc2626" if critical > 0 else "#f59e0b" if high > 0 else "#3b82f6"
-                cve_html += f"""<div style="margin:6px 0;padding:6px 10px;background:#f8fafc;border-left:3px solid {badge_color};font-size:9pt">
-                  <strong>{sw}</strong> &mdash; {total} CVEs conocidos"""
-                if critical > 0:
-                    cve_html += f" (<span style='color:#dc2626;font-weight:bold'>{critical} cr&iacute;ticos</span>)"
-                if high > 0:
-                    cve_html += f" (<span style='color:#ea580c;font-weight:bold'>{high} altos</span>)"
-                samples = cf.get("sample_cves", [])
-                if samples:
-                    cve_html += "<ul style='margin:4px 0 0;padding-left:18px'>"
-                    for cve_id, score, desc in samples[:3]:
-                        score_color_val = "#dc2626" if score >= 9.0 else "#ea580c" if score >= 7.0 else "#f59e0b" if score >= 4.0 else "#22c55e"
-                        short_desc = escape(desc[:120]) + ("..." if len(desc) > 120 else "")
-                        cve_html += f"<li><strong style='color:{score_color_val}'>{escape(str(cve_id))}</strong> (CVSS {score}) &mdash; {short_desc}</li>"
-                    cve_html += "</ul>"
-                cve_html += "</div>"
+            total_all = sum(cf.get("cves_total", 0) for cf in cve_findings)
+            total_crit = sum(cf.get("critical", 0) for cf in cve_findings)
+            total_high = sum(cf.get("high", 0) for cf in cve_findings)
+            sw_names = ", ".join(escape(cf.get("software", "")) for cf in cve_findings)
+            severity_word = "cr&iacute;tica" if total_crit > 0 else "alta" if total_high > 0 else "moderada"
+            severity_color = "#dc2626" if total_crit > 0 else "#ea580c" if total_high > 0 else "#f59e0b"
+            cve_html = f"""<div style="margin:8px 0;padding:8px 12px;background:#fef2f2;border-left:3px solid {severity_color};font-size:9.5pt">
+              <strong>&#9888; Se han detectado {total_all} fallos de seguridad documentados</strong>
+              en el software del servidor ({sw_names}), de los cuales
+              <strong style="color:{severity_color}">{total_crit + total_high} son de gravedad {severity_word}</strong>.
+              <p style="margin:6px 0 0">Estos fallos est&aacute;n catalogados en la base de datos
+              p&uacute;blica de vulnerabilidades del gobierno de EE.UU. (NIST) y son conocidos por
+              atacantes de todo el mundo. Mientras el software no se actualice, un atacante podr&iacute;a
+              aprovechar estas debilidades para acceder al servidor, robar datos de clientes o
+              instalar programas maliciosos.</p>
+            </div>"""
         findings_html += f"""
         <div class="finding-card">
           <h3><span class="badge sev-{sev}">{sev_label}</span> &nbsp;Software obsoleto y/o informaci&oacute;n t&eacute;cnica expuesta</h3>
