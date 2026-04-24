@@ -339,10 +339,14 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
     if ts < 8:
         sev, sev_label = _sev(ts)
         tls_detail = escape(details.get("tls", ""))
+        tls_body = f"<p>{tls_detail}</p>" if tls_detail else ""
         findings_html += f"""
         <div class="finding-card">
           <h3><span class="badge sev-{sev}">{sev_label}</span> &nbsp;Configuraci&oacute;n SSL/TLS mejorable</h3>
-          <p>{tls_detail}</p>
+          {tls_body}
+          <p><span class="risk-label">Riesgo:</span> Una configuraci&oacute;n TLS d&eacute;bil permite
+          que un atacante en la misma red intercepte comunicaciones entre los clientes y el servidor,
+          incluyendo datos personales, credenciales y formularios.</p>
         </div>"""
 
     # Exposure finding
@@ -350,10 +354,14 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
     if es < 8:
         sev, sev_label = _sev(es)
         exp_detail = escape(details.get("exposure", ""))
+        exp_body = f"<p>{exp_detail}</p>" if exp_detail else ""
         findings_html += f"""
         <div class="finding-card">
           <h3><span class="badge sev-{sev}">{sev_label}</span> &nbsp;Superficie externa expuesta</h3>
-          <p>{exp_detail}</p>
+          {exp_body}
+          <p><span class="risk-label">Riesgo:</span> Cada servicio expuesto a Internet es un punto de entrada
+          potencial. Los puertos y servicios innecesarios aumentan la superficie de ataque y pueden contener
+          vulnerabilidades que permitan el acceso no autorizado a sistemas internos.</p>
         </div>"""
 
     # Breach / email exposure finding
@@ -388,6 +396,9 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
           <h3><span class="badge sev-medium">Media</span> &nbsp;Dominio presente en filtraciones de datos</h3>
           <p>El dominio <strong>{escape(domain)}</strong> aparece en <strong>{breach_count} filtraci&oacute;n(es)</strong>
           conocida(s): {escape(', '.join(breach_names[:5]))}.</p>
+          <p><span class="risk-label">Riesgo:</span> Aunque no se han identificado cuentas concretas afectadas,
+          la presencia del dominio en filtraciones indica que credenciales de la organizaci&oacute;n
+          pueden estar circulando en foros y mercados clandestinos.</p>
         </div>"""
     elif all_emails and bs >= 8:
         findings_html += f"""
@@ -395,6 +406,18 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
           <h3><span class="badge sev-good">Bueno</span> &nbsp;Sin filtraciones de datos detectadas</h3>
           <p>Se analizaron {len(all_emails)} direcciones de email asociadas a {escape(domain)}.
           Ninguna aparece en filtraciones de datos conocidas.</p>
+        </div>"""
+
+    # Website email exposure finding
+    if website_emails:
+        findings_html += f"""
+        <div class="finding-card">
+          <h3><span class="badge sev-medium">Media</span> &nbsp;Direcciones de email visibles en la web</h3>
+          <p>Se han encontrado <strong>{len(website_emails)} direcci&oacute;n(es) de email</strong> publicadas
+          directamente en el sitio web de {escape(domain)}.</p>
+          <p><span class="risk-label">Riesgo:</span> Las direcciones visibles son recopiladas por bots
+          para campa&ntilde;as de spam y phishing dirigido. Sustituirlas por formularios de contacto
+          reduce significativamente el volumen de correo malicioso recibido.</p>
         </div>"""
 
     # Compliance finding (RGPD/LSSI-CE)
@@ -484,10 +507,23 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
 
     if cs < 8:
         comp_missing = [k for k, v in comp_checks.items() if "No" in v]
-        if "cookie_banner" in comp_missing or "privacy_policy" in comp_missing:
+        if "cookie_banner" in comp_missing and "privacy_policy" in comp_missing:
             recs_high.append("Implementar banner de cookies con consentimiento expl&iacute;cito y pol&iacute;tica de privacidad")
+        elif "cookie_banner" in comp_missing:
+            recs_high.append("Implementar banner de cookies con consentimiento expl&iacute;cito conforme al RGPD")
+        elif "privacy_policy" in comp_missing:
+            recs_high.append("Publicar pol&iacute;tica de privacidad accesible desde todas las p&aacute;ginas")
         if "legal_notice" in comp_missing:
             recs_high.append("Publicar aviso legal con datos fiscales conforme a la LSSI-CE")
+        if "security_txt" in comp_missing:
+            recs_medium.append("Crear archivo <code>security.txt</code> con contacto para reportes de vulnerabilidades (est&aacute;ndar RFC 9116)")
+
+    if es < 8:
+        recs_high.append("Revisar y restringir los servicios y puertos expuestos a Internet al m&iacute;nimo necesario")
+    if breach_count > 0 and not breached_emails:
+        recs_medium.append("Monitorizar las filtraciones del dominio y revisar la pol&iacute;tica de contrase&ntilde;as de la organizaci&oacute;n")
+    if website_emails:
+        recs_medium.append("Retirar las direcciones de email visibles en la web y sustituirlas por formularios de contacto")
 
     if cms_name:
         recs_medium.append(f"Verificar y actualizar {escape(cms_name)} a la &uacute;ltima versi&oacute;n")
