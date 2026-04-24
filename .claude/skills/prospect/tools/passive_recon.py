@@ -295,8 +295,24 @@ def _extract_people_names(html):
     return names
 
 
-def _name_to_email_variants(name, domain):
-    """Generate email candidates from a Spanish name: nombre.apellido@, napellido@, etc."""
+def _linkedin_people(company, people, location="Málaga"):
+    """Search LinkedIn via Bing to validate people work at the company."""
+    from urllib.parse import quote_plus, unquote
+    ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    confirmed = []
+    for person in people[:10]:
+        query = quote_plus(f'site:linkedin.com/in "{person}" "{company}"')
+        raw = run_cmd(
+            f'curl -sL -m 8 -H "User-Agent: {ua}" '
+            f'"https://www.bing.com/search?q={query}&count=5" 2>/dev/null'
+        )
+        if raw and "linkedin.com/in/" in raw.lower():
+            confirmed.append(person)
+    return confirmed
+
+
+def _name_to_email_candidates(name, domain):
+    """Generate plausible email candidates from a name for breach-only checking."""
     import unicodedata
     def strip_accents(s):
         return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
@@ -306,31 +322,36 @@ def _name_to_email_variants(name, domain):
         return []
     first = strip_accents(parts[0])
     last = strip_accents(parts[1])
-    variants = [
+    candidates = [
         f"{first}.{last}@{domain}",
         f"{first[0]}{last}@{domain}",
         f"{first}{last[0]}@{domain}",
         f"{first}@{domain}",
+        f"{first}{last}@{domain}",
     ]
     if len(parts) >= 3:
         last2 = strip_accents(parts[2])
-        variants.append(f"{first}.{last}.{last2}@{domain}")
-    return variants
+        candidates.append(f"{first}.{last}.{last2}@{domain}")
+    return candidates
 
 
 def _search_engine_emails(domain):
-    """Harvest emails via Google and Bing search scraping."""
+    """Harvest emails via Bing and DuckDuckGo (Google requires JS, unusable with curl)."""
+    from urllib.parse import unquote
     emails = {}
     ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
-    for engine, url in [
-        ("google", f'https://www.google.com/search?q=%22%40{domain}%22&num=50'),
-        ("google2", f'https://www.google.com/search?q=site%3A{domain}+email+OR+contacto+OR+contact&num=30'),
+    searches = [
         ("bing", f'https://www.bing.com/search?q=%22%40{domain}%22&count=50'),
-    ]:
-        raw = run_cmd(f'curl -sL -m 10 -H "User-Agent: {ua}" "{url}" 2>/dev/null')
+        ("bing2", f'https://www.bing.com/search?q=site%3A{domain}+email+OR+contacto+OR+contact&count=30'),
+        ("duckduckgo", f'https://lite.duckduckgo.com/lite/?q=%22%40{domain}%22'),
+    ]
+    for engine, url in searches:
+        if "lite.duckduckgo" in url:
+            raw = run_cmd(f'curl -sL -m 10 -H "User-Agent: {ua}" -d "q=%22%40{domain}%22" "https://lite.duckduckgo.com/lite/" 2>/dev/null')
+        else:
+            raw = run_cmd(f'curl -sL -m 10 -H "User-Agent: {ua}" "{url}" 2>/dev/null')
         if raw:
-            from urllib.parse import unquote
             raw = unquote(raw)
             found = set(re.findall(r'[a-zA-Z0-9._%+\-]+@' + re.escape(domain), raw))
             for e in found:
@@ -338,6 +359,73 @@ def _search_engine_emails(domain):
                 if len(e.split('@')[0]) >= 2:
                     emails.setdefault(e, []).append(engine)
     return emails
+
+
+def _wayback_emails(domain):
+    """Harvest emails from Wayback Machine historical snapshots."""
+    emails = {}
+    cdx_raw = run_cmd(
+        f'curl -s -m 15 "http://web.archive.org/cdx/search/cdx?url={domain}/*'
+        f'&output=text&fl=original,timestamp&filter=mimetype:text/html'
+        f'&collapse=urlkey&limit=20"',
+        timeout=20
+    )
+    if not cdx_raw or "[TIMEOUT]" in cdx_raw:
+        return emails
+
+    urls_seen = set()
+    for line in cdx_raw.strip().split("\n"):
+        parts = line.strip().split()
+        if len(parts) < 2:
+            continue
+        url, ts = parts[0], parts[1]
+        norm = re.sub(r'https?://(www\.)?', '', url).rstrip('/')
+        if norm in urls_seen:
+            continue
+        urls_seen.add(norm)
+        wb_url = f"https://web.archive.org/web/{ts}/{url}"
+        raw = run_cmd(f'curl -sL -m 10 "{wb_url}" 2>/dev/null', timeout=15)
+        if raw:
+            found = set(re.findall(r'[a-zA-Z0-9._%+\-]+@' + re.escape(domain), raw))
+            for e in found:
+                e = e.lower().strip('.')
+                if len(e.split('@')[0]) >= 2:
+                    emails.setdefault(e, []).append("wayback")
+    return emails
+
+
+def _spider_internal_links(domain, page_cache):
+    """Follow internal links from cached pages to discover more email-containing pages."""
+    discovered = {}
+    seen_paths = set(page_cache.keys())
+    links = set()
+    for html in page_cache.values():
+        for href in re.findall(r'href=["\']([^"\'#?]+)', html):
+            href = href.strip()
+            if href.startswith('/') and len(href) > 1:
+                links.add(href)
+            elif domain in href:
+                path = re.sub(r'https?://[^/]+', '', href)
+                if path and path.startswith('/'):
+                    links.add(path)
+
+    new_links = [l for l in links if l not in seen_paths and not re.search(
+        r'\.(css|js|png|jpg|jpeg|gif|svg|ico|pdf|zip|woff|ttf|xml|json)$', l, re.I
+    )][:15]
+
+    for path in new_links:
+        raw = run_cmd(f'curl -sL -m 6 https://www.{domain}{path} 2>/dev/null')
+        if not raw or "[TIMEOUT]" in raw or len(raw) < 200:
+            raw = run_cmd(f'curl -sL -m 6 https://{domain}{path} 2>/dev/null')
+        if not raw or "[TIMEOUT]" in raw:
+            continue
+        found = set(re.findall(r'[a-zA-Z0-9._%+\-]+@' + re.escape(domain), raw))
+        for e in found:
+            e = e.lower().strip('.')
+            if len(e.split('@')[0]) >= 2:
+                discovered.setdefault(e, []).append(f"spider:{path}")
+        page_cache[path] = raw
+    return discovered
 
 
 def _crtsh_emails(domain):
@@ -364,19 +452,18 @@ def harvest_emails(domain):
     all_people = []
     page_cache = {}
 
-    search_emails = _search_engine_emails(domain)
-    for e, sources in search_emails.items():
-        found.add(e)
-        results["sources"].setdefault(e, []).extend(sources)
-    results["raw"] += f"--- Search engines: {len(search_emails)} emails ---\n"
-    for e, s in search_emails.items():
-        results["raw"] += f"  {e} ({', '.join(s)})\n"
+    def _add_emails(email_dict, label):
+        count = 0
+        for e, srcs in email_dict.items():
+            found.add(e)
+            results["sources"].setdefault(e, []).extend(srcs)
+            count += 1
+        results["raw"] += f"--- {label}: {count} emails ---\n"
+        for e, s in email_dict.items():
+            results["raw"] += f"  {e} ({', '.join(s)})\n"
 
-    crt_emails = _crtsh_emails(domain)
-    for e, sources in crt_emails.items():
-        found.add(e)
-        results["sources"].setdefault(e, []).extend(sources)
-    results["raw"] += f"--- crt.sh: {len(crt_emails)} emails ---\n"
+    _add_emails(_search_engine_emails(domain), "Search engines (Bing/DDG)")
+    _add_emails(_crtsh_emails(domain), "crt.sh")
 
     pages = ["", "/contacto", "/contact", "/about", "/sobre-nosotros",
              "/aviso-legal", "/legal", "/politica-privacidad", "/equipo", "/team",
@@ -397,6 +484,9 @@ def harvest_emails(domain):
             results["sources"].setdefault(e, []).append(f"website:{path or '/'}")
         results["raw"] += f"--- {path or '/'} ---\n{','.join(emails_in_page) or 'none'}\n"
 
+    _add_emails(_spider_internal_links(domain, page_cache), "Spider (internal links)")
+    _add_emails(_wayback_emails(domain), "Wayback Machine")
+
     people_pages = ["/equipo", "/team", "/quienes-somos", "/nuestro-equipo",
                     "/profesionales", "/staff", "/about", "/sobre-nosotros", ""]
     for path in people_pages:
@@ -410,28 +500,14 @@ def harvest_emails(domain):
     results["raw"] += f"\n--- People found: {len(all_people)} ---\n"
     for person in all_people[:15]:
         results["raw"] += f"  {person}\n"
-        variants = _name_to_email_variants(person, domain)
-        for v in variants:
-            if v not in found:
-                found.add(v)
-                results["sources"].setdefault(v, []).append(f"person:{person}")
-
     results["people"] = all_people[:15]
-
-    common_prefixes = ["info", "contacto", "admin", "administracion",
-                       "legal", "recepcion", "oficina", "hola", "contact"]
-    for prefix in common_prefixes:
-        candidate = f"{prefix}@{domain}"
-        if candidate not in found:
-            results["sources"].setdefault(candidate, []).append("common-pattern")
-            found.add(candidate)
 
     results["emails"] = sorted(found)
     osint_count = len([e for e, s in results["sources"].items()
-                       if any(x in str(s) for x in ["google", "bing", "crt.sh"])])
-    website_count = len([e for e, s in results["sources"].items() if any("website" in x for x in s)])
-    people_count = len([e for e, s in results["sources"].items() if any("person:" in x for x in s)])
-    results["raw"] += f"\n--- Total: {len(found)} emails ({osint_count} OSINT, {website_count} website, {people_count} people, {len(common_prefixes)} patterns) ---\n"
+                       if any(x in str(s) for x in ["bing", "duckduckgo", "crt.sh", "wayback"])])
+    website_count = len([e for e, s in results["sources"].items()
+                        if any("website" in x or "spider" in x for x in s)])
+    results["raw"] += f"\n--- Total: {len(found)} confirmed emails ({osint_count} OSINT, {website_count} website) ---\n"
     return results
 
 
@@ -744,16 +820,54 @@ def run_recon(domain, output_dir, company="", sector=""):
             except Exception as e:
                 results[name] = {"error": str(e), "score": 5}
 
-    # Breach check: prioritize real emails (OSINT/website) over generated patterns
     email_data = results.get("emails", {})
-    sources = email_data.get("sources", {})
-    real = [e for e, s in sources.items() if not all("common-pattern" in x for x in s)]
-    patterns = [e for e, s in sources.items() if all("common-pattern" in x for x in s)]
-    prioritized = real + patterns
+    confirmed_emails = email_data.get("emails", [])
     try:
-        results["breach"] = check_breaches(domain, prioritized[:25])
+        results["breach"] = check_breaches(domain, confirmed_emails[:25])
     except Exception as e:
-        results["breach"] = {"error": str(e), "score": 7, "breached_emails": [], "emails_checked": prioritized[:25]}
+        results["breach"] = {"error": str(e), "score": 7, "breached_emails": [], "emails_checked": confirmed_emails[:25]}
+
+    people = email_data.get("people", [])
+    if people:
+        linkedin_confirmed = _linkedin_people(company, people)
+        candidate_pool = linkedin_confirmed if linkedin_confirmed else people
+        already_checked = set(confirmed_emails[:25])
+        candidates = []
+        for person in candidate_pool[:10]:
+            for c in _name_to_email_candidates(person, domain):
+                if c not in already_checked and c not in candidates:
+                    candidates.append(c)
+        if candidates:
+            import time
+            speculative_hits = []
+            results["breach"]["raw"] = results["breach"].get("raw", "")
+            results["breach"]["raw"] += f"\n--- Speculative check: {len(candidates[:20])} candidates from {len(candidate_pool)} people ---\n"
+            for email in candidates[:20]:
+                hit, raw = _check_xposedornot(email)
+                if hit:
+                    hit["source"] = "speculative-confirmed"
+                    speculative_hits.append(hit)
+                    results["breach"]["breached_emails"].append(hit)
+                    results["breach"]["breach_count"] = results["breach"].get("breach_count", 0) + hit["count"]
+                    for bn in hit["breaches"]:
+                        if bn not in results["breach"].get("breaches", []):
+                            results["breach"].setdefault("breaches", []).append(bn)
+                    email_data["emails"].append(email)
+                    email_data["sources"][email] = ["breach-confirmed"]
+                    results["breach"]["raw"] += f"  ** HIT ** {email}: {hit['breaches']}\n"
+                time.sleep(0.5)
+            if speculative_hits:
+                breached_count = len(results["breach"]["breached_emails"])
+                if breached_count <= 2:
+                    results["breach"]["score"] = 7
+                elif breached_count <= 5:
+                    results["breach"]["score"] = 5
+                elif breached_count <= 10:
+                    results["breach"]["score"] = 3
+                else:
+                    results["breach"]["score"] = 1
+        results["breach"]["linkedin_confirmed"] = linkedin_confirmed
+        results["breach"]["people_checked"] = len(candidate_pool)
 
     for name, data in results.items():
         raw = data.get("raw", "")
