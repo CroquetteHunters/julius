@@ -20,7 +20,9 @@ Estos datos son visibles para cualquier persona en Internet, lo que significa qu
 
 He preparado un informe detallado con las {finding_count} observaciones, puntuación de seguridad y un plan de acción priorizado. Se lo envío adjunto sin compromiso.
 
-Si le interesa, le ofrezco una llamada de 15 minutos para revisarlo juntos y responder cualquier duda. Puede reservar directamente aquí: {calendar_link}
+Como consultor de ciberseguridad especializado, ofrezco servicios de test de penetración, consultoría de seguridad, desarrollo seguro y formación para equipos. Puede consultar mi perfil profesional y todos los servicios en {consultant_website}.
+
+Si desea comentar los hallazgos o explorar cómo mejorar la seguridad de {company_name}, puede contactarme directamente a través del formulario en mi web.
 
 Un saludo,
 
@@ -28,6 +30,7 @@ Un saludo,
 {consultant_role}
 {consultant_email}
 {consultant_phone}
+{consultant_website}
 
 ---
 
@@ -43,7 +46,7 @@ Le escribo brevemente para asegurarme de que recibió el informe de seguridad qu
 
 Desde entonces, {followup_hook}
 
-Quedo a su disposición para una breve llamada si le resulta útil. Sin ningún compromiso.
+Si desea comentarlo, puede contactarme a través del formulario en mi web ({consultant_website}). Sin ningún compromiso.
 
 Un saludo,
 
@@ -97,6 +100,7 @@ Un saludo,
 {consultant_name}
 {consultant_role}
 {consultant_email}
+{consultant_website}
 
 ---
 
@@ -106,7 +110,7 @@ Un saludo,
 - Revisar tono según el sector (más formal para legal/banca, más cercano para hostelería/comercio)
 - Verificar que los findings del teaser son reales y están en el informe
 - Ajustar precios según complejidad del dominio y tamaño de empresa
-- Añadir calendario link real (Calendly/Cal.com)
+- Verificar que {consultant_website} enlaza correctamente al formulario de contacto
 
 **Hooks de follow-up (para {followup_hook}):**
 - "he notado que el certificado SSL de {domain} caduca en X días"

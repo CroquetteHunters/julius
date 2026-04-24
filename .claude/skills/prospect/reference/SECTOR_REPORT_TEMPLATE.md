@@ -54,4 +54,8 @@ Se ha analizado la superficie de seguridad publica de {company_count} empresas d
 
 ---
 
+**Contacto:**
+{consultant_name} — {consultant_role}
+Email: {consultant_email} | Web: {consultant_website}
+
 *Nota: Los resultados individuales son confidenciales. Este informe presenta datos agregados y anonimizados. Ninguna empresa es identificable a partir de los datos publicados.*

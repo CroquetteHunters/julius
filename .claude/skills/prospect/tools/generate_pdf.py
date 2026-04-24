@@ -248,6 +248,7 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
     consultant_name = consultant.get("name", os.environ.get("PROSPECT_CONSULTANT_NAME", "Consultor de Ciberseguridad"))
     consultant_email = consultant.get("email", os.environ.get("PROSPECT_CONSULTANT_EMAIL", ""))
     consultant_role = consultant.get("role", os.environ.get("PROSPECT_CONSULTANT_ROLE", "Consultor de Ciberseguridad"))
+    consultant_website = consultant.get("website", os.environ.get("PROSPECT_CONSULTANT_WEBSITE", ""))
 
     scores = scores_data["scores"]
     total = scores_data["total"]
@@ -556,16 +557,22 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
 </div>
 
 <div class="cta-box">
-  <h3>&iquest;Interesado en una evaluaci&oacute;n completa?</h3>
-  <p>Este informe cubre solo la superficie externa. Una auditor&iacute;a completa incluir&iacute;a test de
-  penetraci&oacute;n web, revisi&oacute;n de servidor, cumplimiento RGPD/LOPD-GDD y formaci&oacute;n
-  para empleados.</p>
-  <p><strong>Ofrezco una llamada gratuita de 15 minutos para revisar estos hallazgos.</strong></p>
+  <h3>&iquest;Interesado en mejorar la seguridad de su empresa?</h3>
+  <p>Este informe cubre solo la superficie externa. Como consultor especializado, ofrezco servicios
+  que cubren todo el ciclo de seguridad:</p>
+  <ul style="text-align:left; margin:10px auto; max-width:480px;">
+    <li><strong>Test de penetraci&oacute;n</strong> &mdash; aplicaciones web, APIs, m&oacute;vil, cloud e infraestructura</li>
+    <li><strong>Consultor&iacute;a de seguridad</strong> &mdash; arquitectura segura, threat modeling, revisi&oacute;n de c&oacute;digo, DevSecOps, cumplimiento (ISO 27001, SOC 2)</li>
+    <li><strong>Desarrollo seguro</strong> &mdash; herramientas de seguridad a medida, integraci&oacute;n de controles, dashboards</li>
+    <li><strong>Formaci&oacute;n</strong> &mdash; coding seguro, OWASP Top 10, concienciaci&oacute;n para equipos</li>
+  </ul>
+  {f'<p>Consulte mi perfil profesional completo y cont&aacute;cteme a trav&eacute;s del formulario en <a href="{escape(consultant_website)}" style="color:#1e40af;font-weight:600">{escape(consultant_website.replace("https://", ""))}</a>.</p>' if consultant_website else ''}
 </div>
 
 <div class="contact">
   <strong>{escape(consultant_name)}</strong> &mdash; {escape(consultant_role)}<br>
   Email: {escape(consultant_email)}
+  {f'<br>Web: <a href="{escape(consultant_website)}" style="color:#2563eb">{escape(consultant_website.replace("https://", ""))}</a>' if consultant_website else ''}
 </div>
 
 <div class="disclaimer">

@@ -26,6 +26,7 @@ Set these in your `.env` file to personalize reports:
 PROSPECT_CONSULTANT_NAME=Your Name
 PROSPECT_CONSULTANT_EMAIL=your@email.com
 PROSPECT_CONSULTANT_ROLE=Security Consultant
+PROSPECT_CONSULTANT_WEBSITE=https://yoursite.com
 ```
 
 If not set, reports use generic defaults.

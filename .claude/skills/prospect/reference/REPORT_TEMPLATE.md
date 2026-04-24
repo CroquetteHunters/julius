@@ -128,16 +128,15 @@ Las filtraciones de datos ocurren cuando los datos de usuarios (emails, contrase
 
 ## 5. Próximos Pasos
 
-Este informe cubre únicamente la **superficie externa visible**. Un análisis completo de seguridad incluiría:
+Este informe cubre únicamente la **superficie externa visible**. Como consultor especializado, ofrezco servicios que cubren todo el ciclo de seguridad:
 
-- Auditoría de la aplicación web (pruebas de penetración con autorización)
-- Revisión de configuración del servidor y base de datos
-- Evaluación de políticas de acceso y contraseñas
-- Análisis de cumplimiento normativo (RGPD, LOPD-GDD)
-- Formación en concienciación de seguridad para empleados
+- **Test de penetración** — aplicaciones web, APIs, móvil, cloud e infraestructura
+- **Consultoría de seguridad** — arquitectura segura, threat modeling, revisión de código, DevSecOps, cumplimiento (ISO 27001, SOC 2)
+- **Desarrollo seguro** — herramientas de seguridad a medida, integración de controles, dashboards
+- **Formación** — coding seguro, OWASP Top 10, concienciación para equipos
 
-**¿Interesado en una evaluación completa?**
-Ofrezco una llamada gratuita de 15 minutos para revisar estos hallazgos y discutir cómo mejorar la seguridad de {company_name}.
+**¿Interesado en mejorar la seguridad de su empresa?**
+Consulte mi perfil profesional completo y contácteme a través del formulario en {consultant_website}.
 
 ---
 
