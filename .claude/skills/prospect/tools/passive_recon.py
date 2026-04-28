@@ -761,7 +761,8 @@ def check_leakix(domain):
         noauth = leak.get("service", {}).get("credentials", {}).get("noauth", False)
         if noauth:
             entry["noauth"] = True
-        results["leaks"].append(entry)
+        if plugin or entry.get("host") or entry.get("summary") or entry.get("software"):
+            results["leaks"].append(entry)
 
     for leak in raw_leaks:
         _process_leak(leak)
@@ -781,7 +782,11 @@ def check_leakix(domain):
 
     results["leak_count"] = len(results["leaks"])
     results["service_count"] = len(raw_services)
-    results["severity_breakdown"] = {k: v for k, v in severity_count.items() if v > 0}
+    filtered_sev = {}
+    for lk in results["leaks"]:
+        s = lk.get("severity", "info")
+        filtered_sev[s] = filtered_sev.get(s, 0) + 1
+    results["severity_breakdown"] = {k: v for k, v in filtered_sev.items() if v > 0}
     results["plugins_detected"] = sorted(seen_plugins)
 
     for plugin_name in seen_plugins:
@@ -810,9 +815,9 @@ def check_leakix(domain):
         )
     )
 
-    crit = severity_count["critical"]
-    high = severity_count["high"]
-    medium = severity_count["medium"]
+    crit = filtered_sev.get("critical", 0)
+    high = filtered_sev.get("high", 0)
+    medium = filtered_sev.get("medium", 0)
     if crit > 0:
         results["score"] -= min(crit * 3, 6)
     if high > 0:

@@ -637,21 +637,41 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
                 f"<td style='color:{sc};font-weight:600'>{escape(pd.get('severity', ''))}</td>"
                 f"<td>{pd.get('count', 0)}</td></tr>"
             )
-        plugin_table = f"""<table class="mini-table"><thead><tr>
-            <th>Exposici&oacute;n detectada</th><th>Severidad</th><th>Incidencias</th>
-            </tr></thead><tbody>{plugin_rows}</tbody></table>""" if plugin_rows else ""
-        findings_html += f"""
-        <div class="finding-card">
-          <h3><span class="badge sev-{sev}">{sev_label}</span> &nbsp;Exposiciones de datos confirmadas</h3>
-          <p>Motores de b&uacute;squeda especializados en seguridad han indexado
-          <strong>{len(lix_leaks)} exposiciones confirmadas</strong> en la infraestructura
-          del dominio: {sev_items}.</p>
-          {plugin_table}
-          <p><span class="risk-label">Riesgo:</span> Estas exposiciones no son te&oacute;ricas &mdash;
-          han sido indexadas por motores p&uacute;blicos, lo que significa que cualquier persona puede
-          acceder a la informaci&oacute;n expuesta. Seg&uacute;n el RGPD, la exposici&oacute;n no controlada
-          de datos puede constituir una brecha de seguridad notificable a la AEPD en un plazo de 72 horas.</p>
-        </div>"""
+        host_detail = ""
+        if not plugin_rows:
+            host_map = {}
+            for lk in lix_leaks:
+                h = lk.get("host", "")
+                if not h:
+                    continue
+                plugin = lk.get("plugin", "")
+                pd_match = next((p for p in lix_plugin_details if p.get("plugin") == plugin), None)
+                label = pd_match.get("label", plugin) if pd_match else (plugin or "Servicio expuesto")
+                host_map.setdefault(h, []).append(label)
+            if host_map:
+                host_items = ""
+                for h, labels in sorted(host_map.items()):
+                    desc = ", ".join(sorted(set(labels)))
+                    host_items += f"<li><code>{escape(h)}</code> &mdash; {escape(desc)}</li>"
+                host_detail = f"<p><strong>Hosts afectados:</strong></p><ul style='margin:4px 0 10px 18px'>{host_items}</ul>"
+        if not plugin_rows and not host_detail:
+            pass
+        else:
+            plugin_table = f"""<table class="mini-table"><thead><tr>
+                <th>Exposici&oacute;n detectada</th><th>Severidad</th><th>Incidencias</th>
+                </tr></thead><tbody>{plugin_rows}</tbody></table>""" if plugin_rows else ""
+            findings_html += f"""
+            <div class="finding-card">
+              <h3><span class="badge sev-{sev}">{sev_label}</span> &nbsp;Exposiciones de datos confirmadas</h3>
+              <p>Motores de b&uacute;squeda especializados en seguridad han indexado
+              <strong>{len(lix_leaks)} exposiciones confirmadas</strong> en la infraestructura
+              del dominio: {sev_items}.</p>
+              {plugin_table}{host_detail}
+              <p><span class="risk-label">Riesgo:</span> Estas exposiciones no son te&oacute;ricas &mdash;
+              han sido indexadas por motores p&uacute;blicos, lo que significa que cualquier persona puede
+              acceder a la informaci&oacute;n expuesta. Seg&uacute;n el RGPD, la exposici&oacute;n no controlada
+              de datos puede constituir una brecha de seguridad notificable a la AEPD en un plazo de 72 horas.</p>
+            </div>"""
 
     # Breach / email exposure finding
     bs = scores.get("breach", 5)
