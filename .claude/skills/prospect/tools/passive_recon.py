@@ -466,19 +466,335 @@ def check_shodan(domain):
         results["hostnames"] = data.get("hostnames", [])
         results["vulns"] = data.get("vulns", [])
 
-        unusual_ports = [p for p in results["ports"] if p not in [80, 443, 8080, 8443]]
+        expected = {80, 443}
+        alt_web = {8080, 8443}
+        unusual_ports = [p for p in results["ports"] if p not in expected and p not in alt_web]
+        alt_open = [p for p in results["ports"] if p in alt_web]
+
         if len(unusual_ports) > 3:
             results["score"] -= 4
         elif unusual_ports:
             results["score"] -= 2
 
+        if alt_open:
+            results["score"] -= 1
+
         if results["vulns"]:
             results["score"] -= min(len(results["vulns"]), 5)
+
+        if not unusual_ports and not alt_open and not results["vulns"]:
+            results["score"] = 10
 
     except (json.JSONDecodeError, TypeError):
         pass
 
     return results
+
+
+def check_sensitive_paths(domain):
+    """Check for exposed sensitive files, admin panels, and misconfigurations."""
+    results = {"raw": "", "findings": [], "score": 10}
+
+    base_urls = []
+    for scheme in ["https", "http"]:
+        test = run_cmd(f'curl -sk -o /dev/null -w "%{{http_code}}" -m 8 {scheme}://{domain}/')
+        if test.strip() in ("200", "301", "302", "403"):
+            base_urls.append(f"{scheme}://{domain}")
+            break
+    if not base_urls:
+        base_urls = [f"https://{domain}"]
+
+    base = base_urls[0]
+
+    CHECKS = [
+        {
+            "category": "env_file",
+            "paths": ["/.env", "/.env.production", "/.env.local", "/.env.backup"],
+            "title": "Archivo .env expuesto",
+            "severity": "critica",
+            "validate": lambda body, _ct: any(k in body for k in ["DB_PASSWORD", "DB_HOST", "APP_KEY", "SECRET_KEY", "API_KEY", "DATABASE_URL", "MYSQL_", "POSTGRES_"]),
+            "extract": lambda body: [line.strip() for line in body.splitlines()[:30] if line.strip() and not line.strip().startswith("#") and "=" in line],
+            "risk": "El archivo .env contiene credenciales de base de datos, claves API y secretos de la aplicación en texto plano. Un atacante puede usarlos para acceder directamente a los sistemas internos.",
+        },
+        {
+            "category": "svn",
+            "paths": ["/.svn/entries", "/.svn/wc.db"],
+            "title": "Repositorio SVN (.svn) expuesto",
+            "severity": "critica",
+            "validate": lambda body, ct: ("dir" in body.lower() and len(body) < 5000) or "SQLite" in body[:20] or "svn" in body.lower()[:500],
+            "extract": lambda body: [line.strip() for line in body.splitlines()[:20] if line.strip()],
+            "risk": "El directorio .svn permite reconstruir el código fuente completo, incluyendo historial de cambios y posibles credenciales en versiones anteriores.",
+        },
+        {
+            "category": "debug_log",
+            "paths": ["/wp-content/debug.log", "/debug.log"],
+            "title": "Log de depuración WordPress expuesto",
+            "severity": "alta",
+            "validate": lambda body, _ct: any(k in body for k in ["PHP Fatal", "PHP Warning", "PHP Notice", "WordPress database error", "Stack trace", "wp-includes", "wp-content"]),
+            "extract": lambda body: body.splitlines()[:15],
+            "risk": "El archivo debug.log expone errores internos con rutas del servidor, consultas SQL, y potencialmente credenciales o tokens. Permite a un atacante mapear la infraestructura interna.",
+        },
+        {
+            "category": "backup_files",
+            "paths": ["/backup.zip", "/backup.sql", "/db.sql", "/dump.sql", "/backup.tar.gz",
+                      "/site.zip", "/www.zip", "/public_html.zip", "/database.sql",
+                      "/wp-config.php.bak", "/wp-config.php.old", "/wp-config.php~",
+                      "/wp-config.php.save", "/wp-config.bak", "/wp-config.old",
+                      "/.wp-config.php.swp", "/config.php.bak"],
+            "title": "Archivos de backup expuestos",
+            "severity": "critica",
+            "validate": lambda body, ct: ct and any(t in ct.lower() for t in ["zip", "sql", "gzip", "tar", "octet-stream"]) or (body[:4] == "PK\x03\x04") or ("CREATE TABLE" in body[:1000]) or ("INSERT INTO" in body[:1000]) or ("mysqldump" in body[:500]) or (body.startswith("<?php") and "DB_PASSWORD" in body[:2000]),
+            "risk": "Los archivos de backup contienen la base de datos completa o el código fuente con credenciales. Es equivalente a entregar una copia completa del sistema a un atacante.",
+        },
+        {
+            "category": "phpinfo",
+            "paths": ["/phpinfo.php", "/info.php", "/php_info.php", "/test.php", "/i.php"],
+            "title": "phpinfo() expuesto públicamente",
+            "severity": "alta",
+            "validate": lambda body, _ct: "PHP Version" in body and ("phpinfo()" in body or "Configuration" in body),
+            "extract": lambda body: _extract_phpinfo(body),
+            "risk": "phpinfo() expone la configuración completa del servidor: versión de PHP, extensiones, variables de entorno (que pueden incluir credenciales), rutas internas y configuración del sistema operativo.",
+        },
+        {
+            "category": "db_admin",
+            "paths": ["/adminer.php", "/adminer/", "/phpmyadmin/", "/phpMyAdmin/",
+                      "/pma/", "/myadmin/", "/dbadmin/", "/sql/"],
+            "title": "Panel de administración de base de datos expuesto",
+            "severity": "critica",
+            "validate": lambda body, _ct: any(k in body for k in ["Adminer", "phpMyAdmin", "Server choice", "Log in", "pma_", "pmahomme"]),
+            "extract": lambda body: [],
+            "risk": "Un panel de administración de base de datos accesible públicamente permite a un atacante intentar acceder directamente a la base de datos mediante fuerza bruta o credenciales por defecto.",
+        },
+        {
+            "category": "server_status",
+            "paths": ["/server-status", "/server-info"],
+            "title": "Apache server-status/server-info expuesto",
+            "severity": "alta",
+            "validate": lambda body, _ct: any(k in body for k in ["Apache Server Status", "Server Version", "Current Time", "Apache Server Information", "Server Built"]),
+            "extract": lambda body: [line.strip() for line in body.splitlines() if "Server Version" in line or "Current Time" in line or "Total accesses" in line][:5],
+            "risk": "server-status expone información en tiempo real: IPs de clientes, URLs solicitadas, carga del servidor y versión exacta de Apache. Permite a un atacante enumerar endpoints internos y planificar ataques.",
+        },
+        {
+            "category": "wp_user_enum",
+            "paths": ["/wp-json/wp/v2/users", "/?rest_route=/wp/v2/users"],
+            "title": "Enumeración de usuarios WordPress",
+            "severity": "media",
+            "validate": lambda body, _ct: body.strip().startswith("[") and '"slug"' in body and '"name"' in body,
+            "extract": lambda body: _extract_wp_users(body),
+            "risk": "La API REST de WordPress expone los nombres de usuario de los administradores. Un atacante puede usar estos nombres para ataques de fuerza bruta contra el panel de login.",
+        },
+        {
+            "category": "xmlrpc",
+            "paths": ["/xmlrpc.php"],
+            "title": "WordPress XML-RPC activo",
+            "severity": "media",
+            "validate": lambda body, _ct: "XML-RPC server accepts POST requests only" in body or "xmlrpc" in body.lower()[:500],
+            "extract": lambda body: [],
+            "risk": "XML-RPC permite amplificación de fuerza bruta (system.multicall), envío de pingbacks para DDoS, y enumeración de credenciales. Debería estar desactivado si no se utiliza.",
+        },
+        {
+            "category": "ds_store",
+            "paths": ["/.DS_Store"],
+            "title": "Archivo .DS_Store expuesto",
+            "severity": "media",
+            "validate": lambda body, _ct: body[:8] == "\x00\x00\x00\x01Bud1" or (len(body) > 10 and body[:4] == "\x00\x00\x00\x01"),
+            "extract": lambda body: [],
+            "risk": "El archivo .DS_Store de macOS revela la estructura de directorios del proyecto, permitiendo a un atacante descubrir archivos y carpetas ocultas.",
+        },
+    ]
+
+    def _check_path(path_info):
+        category = path_info["category"]
+        for path in path_info["paths"]:
+            url = f"{base}{path}"
+            raw_headers = run_cmd(
+                f'curl -sk -D - -o /dev/null -w "\\n%{{http_code}}|%{{size_download}}" '
+                f'-H "User-Agent: Mozilla/5.0" "{url}" -m 10'
+            )
+            lines = raw_headers.strip().split("\n")
+            status_line = lines[-1] if lines else ""
+            parts = status_line.split("|")
+            status = parts[0] if parts else ""
+            size = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+
+            if status != "200" or size < 10:
+                continue
+
+            content_type = ""
+            for line in lines[:-1]:
+                if line.lower().startswith("content-type:"):
+                    content_type = line.split(":", 1)[1].strip()
+
+            body = run_cmd(
+                f'curl -sk -H "User-Agent: Mozilla/5.0" "{url}" -m 10'
+            )
+            if not body:
+                continue
+
+            if "<html" in body.lower()[:500] and category not in ("phpinfo", "db_admin", "server_status", "wp_user_enum"):
+                if "<!doctype" in body.lower()[:100] or "<head>" in body.lower()[:500]:
+                    continue
+
+            try:
+                if path_info["validate"](body, content_type):
+                    extracted = path_info.get("extract", lambda b: [])(body) if "extract" in path_info else []
+                    return {
+                        "category": category,
+                        "path": path,
+                        "url": url,
+                        "title": path_info["title"],
+                        "severity": path_info["severity"],
+                        "risk": path_info["risk"],
+                        "size": size,
+                        "content_type": content_type,
+                        "extracted": extracted[:30] if extracted else [],
+                        "body_preview": body[:500],
+                    }
+            except Exception:
+                continue
+        return None
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(_check_path, check): check["category"] for check in CHECKS}
+        for future in as_completed(futures):
+            cat = futures[future]
+            try:
+                result = future.result()
+                if result:
+                    results["findings"].append(result)
+                    results["raw"] += f"--- {cat}: {result['url']} ---\nStatus: 200, Size: {result['size']}\n{result['body_preview'][:300]}\n\n"
+            except Exception as e:
+                results["raw"] += f"--- {cat}: error: {e} ---\n"
+
+    # Git exposure check — runs after path checks using the same base URL
+    git_result = _check_git_exposed(base, domain)
+    if git_result:
+        results["findings"].append(git_result)
+        results["raw"] += f"--- git_exposed: {git_result['url']} ---\n"
+        results["git_exposed"] = git_result.get("git_data", {})
+
+    crit_count = sum(1 for f in results["findings"] if f["severity"] == "critica")
+    high_count = sum(1 for f in results["findings"] if f["severity"] == "alta")
+    med_count = sum(1 for f in results["findings"] if f["severity"] == "media")
+
+    if crit_count:
+        results["score"] = max(0, 2 - crit_count)
+    elif high_count:
+        results["score"] = max(2, 5 - high_count)
+    elif med_count:
+        results["score"] = max(5, 7 - med_count)
+
+    return results
+
+
+def _check_git_exposed(base_url, domain):
+    """Check for exposed .git directory. Returns a finding dict or None."""
+    for base in [base_url, base_url.replace("https://", "http://") if "https" in base_url else base_url.replace("http://", "https://")]:
+        head_raw = run_cmd(
+            f'curl -sk -o /dev/null -w "%{{http_code}}|%{{size_download}}" '
+            f'-H "User-Agent: Mozilla/5.0" "{base}/.git/HEAD" -m 10'
+        )
+        parts = head_raw.strip().split("|")
+        if len(parts) != 2 or parts[0] != "200":
+            continue
+
+        head_body = run_cmd(
+            f'curl -sk -H "User-Agent: Mozilla/5.0" "{base}/.git/HEAD" -m 10'
+        )
+        if not head_body:
+            continue
+        head_body = head_body.strip()
+        if not (head_body.startswith("ref:") or re.match(r'^[0-9a-f]{40}$', head_body)):
+            continue
+
+        git_data = {"exposed": True, "base_url": base, "head_ref": head_body,
+                    "files": [], "refs": [], "config": {}, "log_entries": [],
+                    "objects_accessible": False}
+
+        config_raw = run_cmd(f'curl -sk -H "User-Agent: Mozilla/5.0" "{base}/.git/config" -m 10')
+        if config_raw and "[core]" in config_raw:
+            git_data["config"]["raw"] = config_raw[:2000]
+            remote_match = re.search(r'url\s*=\s*(.+)', config_raw)
+            if remote_match:
+                git_data["config"]["remote_url"] = remote_match.group(1).strip()
+
+        packed_raw = run_cmd(f'curl -sk -H "User-Agent: Mozilla/5.0" "{base}/.git/packed-refs" -m 10')
+        if packed_raw and not packed_raw.startswith("<!"):
+            for line in packed_raw.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    p = line.split()
+                    if len(p) == 2:
+                        git_data["refs"].append({"hash": p[0], "ref": p[1]})
+
+        logs_raw = run_cmd(f'curl -sk -H "User-Agent: Mozilla/5.0" "{base}/.git/logs/HEAD" -m 10')
+        if logs_raw and not logs_raw.startswith("<!"):
+            for line in logs_raw.strip().splitlines()[-10:]:
+                match = re.search(r'([0-9a-f]{40})\s+([0-9a-f]{40})\s+(.+?)\s+(\d+)\s+[+-]\d+\t(.+)', line)
+                if match:
+                    git_data["log_entries"].append({
+                        "from": match.group(1)[:8], "to": match.group(2)[:8],
+                        "author": match.group(3), "message": match.group(5),
+                    })
+
+        index_raw = run_cmd(
+            f'curl -sk -H "User-Agent: Mozilla/5.0" "{base}/.git/index" -m 10 '
+            f'| strings | grep -E "^[a-zA-Z0-9_./-]{{3,}}$" | head -100'
+        )
+        if index_raw:
+            files = [f.strip() for f in index_raw.splitlines()
+                     if f.strip() and not f.strip().startswith("DIRC")
+                     and ("/" in f.strip() or "." in f.strip())]
+            git_data["files"] = files[:100]
+
+        obj_test = run_cmd(
+            f'curl -sk -o /dev/null -w "%{{http_code}}" '
+            f'-H "User-Agent: Mozilla/5.0" "{base}/.git/objects/" -m 10'
+        )
+        if obj_test.strip() == "200":
+            git_data["objects_accessible"] = True
+
+        return {
+            "category": "git_exposed",
+            "path": "/.git/HEAD",
+            "url": f"{base}/.git/",
+            "title": "Repositorio Git (.git) expuesto públicamente",
+            "severity": "critica",
+            "risk": "La exposición del directorio .git permite a cualquier atacante descargar el código fuente completo de la aplicación, incluyendo posibles credenciales, claves API, configuraciones internas y lógica de negocio.",
+            "size": 0,
+            "content_type": "",
+            "extracted": git_data.get("files", [])[:20],
+            "git_data": git_data,
+        }
+
+    return None
+
+
+def _extract_phpinfo(body):
+    """Extract key info from phpinfo output."""
+    import re
+    info = []
+    patterns = [
+        (r'PHP Version\s*</td><td[^>]*>([^<]+)', 'PHP Version'),
+        (r'System\s*</td><td[^>]*>([^<]+)', 'System'),
+        (r'SERVER_SOFTWARE\s*</td><td[^>]*>([^<]+)', 'Server'),
+        (r'DOCUMENT_ROOT\s*</td><td[^>]*>([^<]+)', 'Document Root'),
+        (r'SERVER_ADMIN\s*</td><td[^>]*>([^<]+)', 'Server Admin'),
+    ]
+    for pattern, label in patterns:
+        m = re.search(pattern, body)
+        if m:
+            info.append(f"{label}: {m.group(1).strip()}")
+    return info
+
+
+def _extract_wp_users(body):
+    """Extract usernames from WP REST API response."""
+    try:
+        users = json.loads(body)
+        return [f"{u.get('slug', '?')} ({u.get('name', '?')})" for u in users[:10]]
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 SPANISH_FIRST_NAMES = {
@@ -1387,6 +1703,7 @@ def run_recon(domain, output_dir, company="", sector=""):
         "tech": lambda: check_tech(domain),
         "emails": lambda: harvest_emails(domain),
         "compliance": lambda: check_compliance(domain),
+        "sensitive_paths": lambda: check_sensitive_paths(domain),
     }
 
     with ThreadPoolExecutor(max_workers=8) as executor:
@@ -1482,6 +1799,13 @@ def run_recon(domain, output_dir, company="", sector=""):
         (evidence_dir / "compliance.json").write_text(
             json.dumps(results["compliance"], indent=2, default=str)
         )
+    if "sensitive_paths" in results:
+        sp_evidence = {k: v for k, v in results["sensitive_paths"].items() if k != "raw"}
+        for f in sp_evidence.get("findings", []):
+            f.pop("body_preview", None)
+        (evidence_dir / "sensitive_paths.json").write_text(
+            json.dumps(sp_evidence, indent=2, default=str)
+        )
 
     scores = {
         "headers": results.get("headers", {}).get("score", 5),
@@ -1494,9 +1818,10 @@ def run_recon(domain, output_dir, company="", sector=""):
         ),
         "breach": results.get("breach", {}).get("score", 7),
         "compliance": results.get("compliance", {}).get("score", 5),
+        "misconfig": results.get("sensitive_paths", {}).get("score", 10),
     }
 
-    weights = {"headers": 0.10, "tech": 0.15, "tls": 0.10, "dns": 0.15, "exposure": 0.15, "breach": 0.15, "compliance": 0.20}
+    weights = {"headers": 0.05, "tech": 0.15, "tls": 0.05, "dns": 0.10, "exposure": 0.10, "breach": 0.15, "compliance": 0.15, "misconfig": 0.25}
     total = sum(scores[k] * weights[k] * 10 for k in scores)
 
     if total >= 90:
@@ -1509,6 +1834,27 @@ def run_recon(domain, output_dir, company="", sector=""):
         grade = "D"
     else:
         grade = "F"
+
+    def _build_exposure_detail(res):
+        sub = res.get("subdomains", {})
+        sh = res.get("shodan", {})
+        parts = []
+        subs = sub.get("subdomains", [])
+        notable = sub.get("notable", [])
+        if subs:
+            parts.append(f"{len(subs)} subdominios detectados")
+            if notable:
+                parts.append(f"notables: {', '.join(notable[:8])}")
+        ports = sh.get("ports", [])
+        if ports:
+            parts.append(f"puertos abiertos: {', '.join(str(p) for p in ports)}")
+        vulns = sh.get("vulns", [])
+        if vulns:
+            parts.append(f"{len(vulns)} CVEs conocidos ({', '.join(vulns[:5])})")
+        hostnames = sh.get("hostnames", [])
+        if hostnames:
+            parts.append(f"hostnames: {', '.join(hostnames[:5])}")
+        return "; ".join(parts) if parts else ""
 
     # Build details summary for each area
     br = results.get("breach", {})
@@ -1558,6 +1904,7 @@ def run_recon(domain, output_dir, company="", sector=""):
             "tech": tech_detail,
             "tls": tls_detail,
             "compliance": comp_detail,
+            "exposure": _build_exposure_detail(results),
         },
     }
 
@@ -1585,6 +1932,7 @@ def print_summary(results, domain):
         "exposure": "Surface Exposure",
         "breach": "Breach History",
         "compliance": "RGPD/LSSI Compliance",
+        "misconfig": "Sensitive Files/Misconfig",
     }
     for key, label in labels.items():
         score = scores.get(key, "?")
@@ -1644,6 +1992,12 @@ def print_summary(results, domain):
         print(f"  Domain found in {br['breach_count']} breach(es): {', '.join(br.get('breaches', [])[:5])}")
     else:
         print(f"  Breaches: none found (API: {br.get('api_used', 'none')})")
+
+    sp = results.get("sensitive_paths", {})
+    if sp.get("findings"):
+        print(f"\n  ⚠ SENSITIVE PATHS FOUND: {len(sp['findings'])}")
+        for f in sp["findings"]:
+            print(f"    [{f['severity'].upper()}] {f['title']} — {f['url']}")
 
     comp = results.get("compliance", {})
     checks = comp.get("checks", {})

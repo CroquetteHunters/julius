@@ -47,6 +47,7 @@ AREA_LABELS = {
     "exposure": "Superficie Expuesta",
     "breach": "Filtraciones",
     "compliance": "Cumplimiento Legal",
+    "misconfig": "Archivos Sensibles",
 }
 
 AREA_ICONS = {
@@ -57,6 +58,7 @@ AREA_ICONS = {
     "exposure": "&#127760;",
     "breach": "&#128681;",
     "compliance": "&#9878;",
+    "misconfig": "&#128270;",
 }
 
 GRADE_COLORS = {
@@ -91,7 +93,7 @@ h3 { color: #1e3a8a; margin-top: 16px; margin-bottom: 6px; page-break-after: avo
 .grade-circle { display: inline-block; width: 80px; height: 80px; border-radius: 50%; line-height: 80px; font-size: 36pt; font-weight: 700; color: #fff; text-align: center; }
 .grade-score { font-size: 14pt; color: #475569; margin-top: 6px; }
 
-.score-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 16px 0; }
+.score-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin: 16px 0; }
 .score-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; }
 .score-card .area-name { font-size: 9pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .score-card .area-score { font-size: 20pt; font-weight: 700; }
@@ -100,13 +102,15 @@ h3 { color: #1e3a8a; margin-top: 16px; margin-bottom: 6px; page-break-after: avo
 
 .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 9pt; font-weight: 600; color: #fff; }
 .sev-critical { background: #dc2626; }
-.sev-high { background: #b91c1c; }
 .sev-medium { background: #c2410c; }
 .sev-low { background: #65a30d; }
 .sev-good { background: #16a34a; }
 
 .finding-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 18px; margin: 12px 0; page-break-inside: avoid; }
 .finding-card h3 { margin-top: 4px; }
+.mini-table { width: auto; min-width: 180px; max-width: 340px; }
+.finding-card ul { list-style: disc; padding-left: 18px; }
+.finding-card code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 8.5pt; }
 .risk-label { font-weight: 600; color: #0f172a; }
 
 table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 9.5pt; }
@@ -261,6 +265,9 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
     breach_data = load_evidence_json(evidence_dir, "breaches.json")
     tech_data = load_evidence_json(evidence_dir, "tech.json")
     compliance_data = load_evidence_json(evidence_dir, "compliance.json")
+    subdomain_data = load_evidence_json(evidence_dir, "subdomains.json")
+    shodan_data = load_evidence_json(evidence_dir, "shodan.json")
+    sensitive_paths_data = load_evidence_json(evidence_dir, "sensitive_paths.json")
 
     # Classify findings by severity using consistent thresholds
     # < 5 = Alta, 5-7 = Media, >= 8 = Bueno (no finding)
@@ -287,6 +294,83 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
 
     def _sev(s):
         return ("critical", "Alta") if s < 5 else ("medium", "Media")
+
+    # Sensitive paths findings (including git exposure) — each gets its own card
+    sp_findings = sensitive_paths_data.get("findings", []) if isinstance(sensitive_paths_data, dict) else []
+    sp_git_data = sensitive_paths_data.get("git_exposed", {}) if isinstance(sensitive_paths_data, dict) else {}
+    sev_map = {"critica": ("critical", "Cr&iacute;tica"), "alta": ("critical", "Alta"), "media": ("medium", "Media")}
+    border_map = {"critica": "#ef4444", "alta": "#f97316", "media": "#eab308"}
+    for spf in sorted(sp_findings, key=lambda x: ["critica", "alta", "media"].index(x.get("severity", "media"))):
+        sp_sev, sp_label = sev_map.get(spf.get("severity", "media"), ("medium", "Media"))
+        sp_border = border_map.get(spf.get("severity", "media"), "#eab308")
+        cat = spf.get("category", "")
+
+        if cat == "git_exposed" and sp_git_data:
+            sp_body = f'<p>El directorio <code>.git</code> del repositorio de c&oacute;digo fuente es accesible p&uacute;blicamente en: <code>{escape(spf.get("url", ""))}</code></p>'
+            head_ref = sp_git_data.get("head_ref", "")
+            if head_ref:
+                sp_body += f'<p><strong>HEAD:</strong> <code>{escape(head_ref)}</code></p>'
+            git_config = sp_git_data.get("config", {})
+            if git_config.get("remote_url"):
+                sp_body += f'<p><strong>Repositorio remoto:</strong> <code>{escape(git_config["remote_url"])}</code></p>'
+            git_refs = sp_git_data.get("refs", [])
+            if git_refs:
+                ref_items = "".join(f"<li><code>{escape(r['ref'])}</code> ({escape(r['hash'][:8])})</li>" for r in git_refs[:10])
+                sp_body += f"<p><strong>{len(git_refs)} referencias</strong> (ramas/tags):</p><ul style='margin:4px 0 10px 18px'>{ref_items}</ul>"
+            git_files = sp_git_data.get("files", [])
+            if git_files:
+                sensitive_patterns = [".env", "config", "password", "secret", "credential", "key", "token", "database", "db", "wp-config"]
+                sensitive = [f for f in git_files if any(p in f.lower() for p in sensitive_patterns)]
+                file_items = "".join(f"<li><code>{escape(f)}</code></li>" for f in git_files[:30])
+                sp_body += f"<p><strong>{len(git_files)} archivos</strong> del proyecto mapeados desde el &iacute;ndice Git:</p><ul style='margin:4px 0 10px 18px'>{file_items}</ul>"
+                if len(git_files) > 30:
+                    sp_body += f"<p style='color:#94a3b8;font-size:9pt'>… y {len(git_files) - 30} m&aacute;s</p>"
+                if sensitive:
+                    sens_items = "".join(f"<li><code style='color:#ef4444'>{escape(f)}</code></li>" for f in sensitive[:10])
+                    sp_body += f"<p style='color:#ef4444'><strong>&#9888; Archivos potencialmente sensibles detectados:</strong></p><ul style='margin:4px 0 10px 18px'>{sens_items}</ul>"
+            log_entries = sp_git_data.get("log_entries", [])
+            if log_entries:
+                log_rows = "".join(f"<tr><td><code>{escape(le.get('to', ''))}</code></td><td>{escape(le.get('author', ''))}</td><td>{escape(le.get('message', ''))}</td></tr>" for le in log_entries[:5])
+                sp_body += f'<p><strong>Historial de commits accesible:</strong></p><table><thead><tr><th>Commit</th><th>Autor</th><th>Mensaje</th></tr></thead><tbody>{log_rows}</tbody></table>'
+            if sp_git_data.get("objects_accessible"):
+                sp_body += '<p style="color:#ef4444"><strong>&#9888; El directorio <code>.git/objects/</code> tambi&eacute;n es accesible</strong>, lo que permite reconstruir el c&oacute;digo fuente completo.</p>'
+        else:
+            sp_body = f'<p>Recurso accesible en: <code>{escape(spf.get("url", ""))}</code></p>'
+            extracted = spf.get("extracted", [])
+            if extracted:
+                if cat == "env_file":
+                    redacted = []
+                    for line in extracted[:20]:
+                        if "=" in line:
+                            key, _, val = line.partition("=")
+                            redacted.append(f"{key.strip()}={'*' * min(len(val.strip()), 8)}")
+                        else:
+                            redacted.append(line)
+                    env_items = "".join(f"<li><code>{escape(r)}</code></li>" for r in redacted)
+                    sp_body += f"<p><strong>Variables detectadas</strong> (valores redactados):</p><ul style='margin:4px 0 10px 18px'>{env_items}</ul>"
+                elif cat == "wp_user_enum":
+                    user_items = "".join(f"<li><code>{escape(u)}</code></li>" for u in extracted[:10])
+                    sp_body += f"<p><strong>Usuarios expuestos:</strong></p><ul style='margin:4px 0 10px 18px'>{user_items}</ul>"
+                elif cat == "phpinfo":
+                    info_items = "".join(f"<li>{escape(i)}</li>" for i in extracted[:8])
+                    sp_body += f"<p><strong>Informaci&oacute;n del servidor:</strong></p><ul style='margin:4px 0 10px 18px'>{info_items}</ul>"
+                elif cat == "debug_log":
+                    log_items = "".join(f"<li><code style='font-size:7.5pt'>{escape(l[:120])}</code></li>" for l in extracted[:8])
+                    sp_body += f"<p><strong>Ejemplo de entradas del log:</strong></p><ul style='margin:4px 0 10px 18px'>{log_items}</ul>"
+                elif cat == "server_status":
+                    status_items = "".join(f"<li>{escape(s)}</li>" for s in extracted[:5])
+                    sp_body += f"<p><strong>Informaci&oacute;n expuesta:</strong></p><ul style='margin:4px 0 10px 18px'>{status_items}</ul>"
+                elif cat == "svn":
+                    svn_items = "".join(f"<li><code>{escape(s)}</code></li>" for s in extracted[:10])
+                    sp_body += f"<p><strong>Contenido del repositorio:</strong></p><ul style='margin:4px 0 10px 18px'>{svn_items}</ul>"
+
+        sp_risk = escape(spf.get("risk", ""))
+        findings_html += f"""
+        <div class="finding-card" style="border-left: 4px solid {sp_border};">
+          <h3><span class="badge sev-{sp_sev}">{sp_label}</span> &nbsp;{escape(spf.get("title", ""))}</h3>
+          {sp_body}
+          <p><span class="risk-label">Riesgo:</span> {sp_risk}</p>
+        </div>"""
 
     # Technology finding (EOL software, version disclosure, CVEs) — highest impact, shown first
     tks = scores.get("tech", 5)
@@ -424,16 +508,73 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
           incluyendo datos personales, credenciales y formularios.</p>
         </div>"""
 
-    # Exposure finding
+    # Exposure finding — rich detail from subdomain + Shodan evidence
     es = scores.get("exposure", 5)
     if es < 8:
         sev, sev_label = _sev(es)
-        exp_detail = escape(details.get("exposure", ""))
-        exp_body = f"<p>{exp_detail}</p>" if exp_detail else ""
+        exp_sections = ""
+
+        # Subdomains (evidence file is a plain list)
+        subs = subdomain_data if isinstance(subdomain_data, list) else subdomain_data.get("subdomains", []) if isinstance(subdomain_data, dict) else []
+        if subs:
+            sub_items = "".join(f"<li><code>{escape(s)}</code></li>" for s in subs[:20])
+            exp_sections += f"<p><strong>{len(subs)} subdominios</strong> detectados via Certificate Transparency:</p><ul style='margin:4px 0 10px 18px'>{sub_items}</ul>"
+            if len(subs) > 20:
+                exp_sections += f"<p style='color:#94a3b8;font-size:9pt'>… y {len(subs) - 20} m&aacute;s</p>"
+
+        # Shodan: IP, ports, services, CVEs
+        sh_ports = shodan_data.get("ports", []) if isinstance(shodan_data, dict) else []
+        sh_vulns = shodan_data.get("vulns", []) if isinstance(shodan_data, dict) else []
+        sh_cpes = shodan_data.get("cpes", []) if isinstance(shodan_data, dict) else []
+        sh_ip = shodan_data.get("ip", "") if isinstance(shodan_data, dict) else ""
+        sh_tags = shodan_data.get("tags", []) if isinstance(shodan_data, dict) else []
+
+        if sh_ports:
+            port_labels = {22: "SSH", 25: "SMTP", 53: "DNS", 80: "HTTP", 443: "HTTPS", 8080: "HTTP-alt", 8443: "HTTPS-alt", 21: "FTP", 3306: "MySQL", 5432: "PostgreSQL", 3389: "RDP", 6379: "Redis", 27017: "MongoDB"}
+            port_rows = ""
+            unusual = []
+            for p in sorted(sh_ports):
+                svc = port_labels.get(p, "—")
+                is_unusual = p not in (80, 443, 8080, 8443)
+                cls = ' style="color:#ef4444;font-weight:600"' if is_unusual else ""
+                port_rows += f"<tr><td{cls}>{p}</td><td>{svc}</td></tr>"
+                if is_unusual:
+                    unusual.append(str(p))
+            ip_display = f" (IP: <code>{escape(sh_ip)}</code>)" if sh_ip else ""
+            exp_sections += f"""<p><strong>{len(sh_ports)} puertos abiertos</strong>{ip_display}:</p>
+            <table class="mini-table"><thead><tr><th>Puerto</th><th>Servicio</th></tr></thead><tbody>{port_rows}</tbody></table>"""
+            if unusual:
+                exp_sections += f'<p style="color:#ef4444;font-size:9pt;margin-top:4px">&#9888; Puertos no est&aacute;ndar expuestos: {", ".join(unusual)}</p>'
+
+        if sh_cpes:
+            svc_names = []
+            for cpe in sh_cpes[:6]:
+                parts = cpe.split(":")
+                if len(parts) >= 5:
+                    svc_names.append(f"{parts[3].replace('_', ' ').title()} {parts[4]}" if parts[4] else parts[3].replace("_", " ").title())
+            if svc_names:
+                exp_sections += "<p><strong>Software identificado:</strong> " + ", ".join(escape(s) for s in svc_names) + "</p>"
+
+        if sh_vulns:
+            vuln_items = "".join(f"<li><code>{escape(v)}</code></li>" for v in sh_vulns[:10])
+            exp_sections += f"<p><strong>{len(sh_vulns)} vulnerabilidades conocidas</strong> (CVE) asociadas a los servicios expuestos:</p><ul style='margin:4px 0 10px 18px'>{vuln_items}</ul>"
+            if len(sh_vulns) > 10:
+                exp_sections += f"<p style='color:#94a3b8;font-size:9pt'>… y {len(sh_vulns) - 10} m&aacute;s</p>"
+
+        if sh_tags:
+            tag_desc = {"starttls": "STARTTLS habilitado", "self-signed": "certificado autofirmado", "cloud": "infraestructura cloud", "honeypot": "posible honeypot", "vpn": "VPN detectada", "eol-os": "sistema operativo sin soporte"}
+            tag_labels = [tag_desc.get(t, t) for t in sh_tags]
+            exp_sections += "<p><strong>Etiquetas:</strong> " + ", ".join(escape(t) for t in tag_labels) + "</p>"
+
+        if not exp_sections:
+            exp_detail = escape(details.get("exposure", ""))
+            if exp_detail:
+                exp_sections = f"<p>{exp_detail}</p>"
+
         findings_html += f"""
         <div class="finding-card">
           <h3><span class="badge sev-{sev}">{sev_label}</span> &nbsp;Superficie externa expuesta</h3>
-          {exp_body}
+          {exp_sections}
           <p><span class="risk-label">Riesgo:</span> Cada servicio expuesto a Internet es un punto de entrada
           potencial. Los puertos y servicios innecesarios aumentan la superficie de ataque y pueden contener
           vulnerabilidades que permitan el acceso no autorizado a sistemas internos.</p>
@@ -600,6 +741,33 @@ def build_html(company, domain, scores_data, evidence_dir, chart_b64, gauge_b64=
 
     if es < 8:
         recs_high.append("Revisar y restringir los servicios y puertos expuestos a Internet al m&iacute;nimo necesario")
+
+    sp_cats = {f.get("category") for f in sp_findings}
+    if sp_findings:
+        sp_crit_cats = {f.get("category") for f in sp_findings if f.get("severity") == "critica"}
+        if "git_exposed" in sp_cats:
+            recs_high.append("Bloquear el acceso p&uacute;blico al directorio <code>.git</code> y rotar cualquier credencial que haya estado expuesta en el repositorio")
+        if "env_file" in sp_cats:
+            recs_high.append("Eliminar o bloquear el acceso al archivo <code>.env</code> y rotar todas las credenciales y claves API contenidas")
+        if "svn" in sp_cats:
+            recs_high.append("Bloquear el acceso p&uacute;blico al directorio <code>.svn</code> y revisar el historial en busca de credenciales")
+        if "backup_files" in sp_cats:
+            recs_high.append("Eliminar los archivos de backup accesibles p&uacute;blicamente y revisar su contenido en busca de credenciales expuestas")
+        if "db_admin" in sp_cats:
+            recs_high.append("Restringir el acceso al panel de administraci&oacute;n de base de datos (adminer/phpMyAdmin) a IPs autorizadas o eliminarlo del servidor p&uacute;blico")
+        if "phpinfo" in sp_cats:
+            recs_high.append("Eliminar el archivo <code>phpinfo()</code> del servidor de producci&oacute;n &mdash; expone credenciales, rutas internas y configuraci&oacute;n completa")
+        if "debug_log" in sp_cats:
+            recs_high.append("Eliminar o proteger el archivo <code>debug.log</code> y desactivar el log de depuraci&oacute;n en producci&oacute;n")
+        if "server_status" in sp_cats:
+            recs_high.append("Restringir <code>server-status</code>/<code>server-info</code> de Apache a IPs internas o desactivarlo")
+        if "wp_user_enum" in sp_cats:
+            recs_high.append("Desactivar la enumeraci&oacute;n de usuarios de WordPress mediante la API REST (filtro <code>rest_authentication_errors</code> o plugin de seguridad)")
+        if "xmlrpc" in sp_cats:
+            recs_high.append("Desactivar <code>xmlrpc.php</code> de WordPress si no se utiliza (bloquearlo en <code>.htaccess</code> o mediante plugin)")
+        if "ds_store" in sp_cats:
+            recs_medium.append("Eliminar el archivo <code>.DS_Store</code> y a&ntilde;adirlo a <code>.gitignore</code> y reglas del servidor")
+
     if breach_count > 0 and not breached_emails:
         recs_medium.append("Monitorizar las filtraciones del dominio y revisar la pol&iacute;tica de contrase&ntilde;as de la organizaci&oacute;n")
     if website_emails:
